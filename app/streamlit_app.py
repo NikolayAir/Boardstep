@@ -106,6 +106,11 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
     return "".join(cells)
 
 
+def current_turn_label(fen: str) -> str:
+    """Return the side to move from the current FEN string."""
+    return "White" if fen.split()[1] == "w" else "Black"
+
+
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="centered")
     initialize_game_state()
@@ -123,12 +128,23 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    st.write(f"**Status:** {game_status(st.session_state.fen)}")
-    st.write(f"**Legal moves:** {legal_move_count(st.session_state.fen)}")
+    current_turn = current_turn_label(st.session_state.fen)
+
+    st.info(f"{current_turn} to move. Enter one legal move in UCI format.")
+    st.write(f"**Game status:** {game_status(st.session_state.fen)}")
+    st.write(f"**Legal moves for {current_turn}:** {legal_move_count(st.session_state.fen)}")
 
     with st.form("move_form", clear_on_submit=True):
-        move_text = st.text_input("Move", placeholder="e2e4")
-        submitted = st.form_submit_button("Play move")
+        move_text = st.text_input(
+            "Move in UCI notation",
+            placeholder="e2e4",
+            help=(
+                "Use source square + target square, for example e2e4 or g1f3. "
+                "For promotion, add the promotion piece, for example e7e8q."
+            ),
+        )
+        st.caption("Examples: e2e4, g1f3, b8c6, e7e8q.")
+        submitted = st.form_submit_button(f"Play {current_turn} move")
 
     if submitted:
         try:
@@ -141,7 +157,11 @@ def main() -> None:
             )
             st.rerun()
         except ValueError as exc:
-            st.error(str(exc))
+            st.error(f"Move not accepted: {exc}")
+            st.caption(
+                "Check that it is the correct side to move and that the move is legal "
+                "in the current position."
+            )
 
     if st.button("Reset game"):
         reset_game()
@@ -149,7 +169,7 @@ def main() -> None:
 
     if st.session_state.move_history:
         st.subheader("Move history")
-        st.write(" ".join(st.session_state.move_history))
+        st.text(" ".join(st.session_state.move_history))
 
     with st.expander("Current FEN"):
         st.code(st.session_state.fen)
