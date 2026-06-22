@@ -1,38 +1,56 @@
 # Boardstep
 
-Boardstep is a browser-based chess practice app for learning chess logic, validating legal moves, and playing through positions in a simple web interface.
+Boardstep is a browser-based chess practice app.
 
-The project starts with a local chess baseline: board state, legal move validation, simple move input, move history, and tests.
+It lets you play through chess moves, check whether moves are legal, and follow the current position in a simple web interface.
 
-## Current scope
+## Current version
 
-- Python + Streamlit app
-- chess rules handled through a Python chess library
-- simple move input
-- legal move validation
-- move history
-- pytest checks
+`v0.1.0` is the first playable local version.
 
-## Planned later
+It includes:
 
-- clearer board display
-- beginner-friendly learning flow
-- chess exercises or puzzles
-- remote turn-based play after the local baseline is stable
+* a visual chessboard
+* legal move checking
+* click-based move controls
+* manual move input as a fallback
+* move history
+* automated tests
 
-## Not included yet
+## How it works now
 
-- online multiplayer
-- chess engine
-- AI chess coach
-- user accounts
-- real-time backend
+The app is mainly for local practice.
+
+You can make moves in two ways:
+
+* use the square buttons to choose a piece and then its target square
+* type a move manually, for example `e2e4` or `g1f3`
+
+For pawn promotion, use manual input, for example `e7e8q`.
+
+## Current limitations
+
+* The main styled chessboard is visual only.
+* The separate square-button board is used for click moves.
+* There is no online play yet.
+* There is no chess engine or AI coach yet.
+
+## Possible next steps
+
+* improve the board interaction
+* make move feedback clearer for beginners
+* add simple chess exercises or puzzles
+* later, explore remote turn-based play
 
 ## Run locally
 
+```zsh
 python -m streamlit run app/streamlit_app.py
+```
 
 ## Checks
 
+```zsh
 python -m compileall app boardstep tests
 python -m pytest -q
+```
