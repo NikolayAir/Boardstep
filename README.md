@@ -4,9 +4,13 @@ Boardstep is a browser-based chess practice app.
 
 It lets you play through chess moves, check whether moves are legal, and follow the current position in a simple web interface.
 
+Live demo: https://boardstep.streamlit.app
+
+The deployed demo is session-based. Each browser session has its own game state; it is not online multiplayer yet.
+
 ## Current version
 
-`v0.1.0` is the first playable local version.
+`v0.2.0` is the first deployed browser demo.
 
 It includes:
 
@@ -15,11 +19,11 @@ It includes:
 * click-based move controls
 * manual move input as a fallback
 * move history
+* current FEN display
 * automated tests
+* GitHub Actions checks
 
 ## How it works now
-
-The app is mainly for local practice.
 
 You can make moves in two ways:
 
@@ -32,7 +36,8 @@ For pawn promotion, use manual input, for example `e7e8q`.
 
 * The main styled chessboard is visual only.
 * The separate square-button board is used for click moves.
-* There is no online play yet.
+* Each browser session has its own game state.
+* There is no shared online game yet.
 * There is no chess engine or AI coach yet.
 
 ## Possible next steps
@@ -40,6 +45,7 @@ For pawn promotion, use manual input, for example `e7e8q`.
 * improve the board interaction
 * make move feedback clearer for beginners
 * add simple chess exercises or puzzles
+* add shareable positions
 * later, explore remote turn-based play
 
 ## Run locally
@@ -53,4 +59,5 @@ python -m streamlit run app/streamlit_app.py
 ```zsh
 python -m compileall app boardstep tests
 python -m pytest -q
+git diff --check
 ```
