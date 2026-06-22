@@ -1,6 +1,7 @@
 # App
 streamlit==1.58.0
 chess==1.11.2
+requests<3
 
 # Tests
 pytest==9.1.1
