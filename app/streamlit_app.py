@@ -6,6 +6,7 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_rows,
+    build_uci_move,
     game_status,
     legal_move_count,
 )
@@ -21,11 +22,19 @@ def initialize_game_state() -> None:
     if "move_history" not in st.session_state:
         st.session_state.move_history = []
 
+    if "selected_square" not in st.session_state:
+        st.session_state.selected_square = None
+
+    if "click_move_error" not in st.session_state:
+        st.session_state.click_move_error = None
+
 
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
     st.session_state.move_history = []
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
 
 
 def render_board_html(rows: list[dict[str, str]]) -> str:
@@ -111,6 +120,69 @@ def current_turn_label(fen: str) -> str:
     return "White" if fen.split()[1] == "w" else "Black"
 
 
+def apply_move_text(move_text: str) -> None:
+    """Apply a move and update Streamlit session state."""
+    new_fen, san = apply_uci_move(st.session_state.fen, move_text)
+    ply_number = len(st.session_state.move_history) + 1
+
+    st.session_state.fen = new_fen
+    st.session_state.move_history.append(
+        f"{ply_number}. {move_text.strip().lower()} ({san})"
+    )
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+
+
+def handle_square_click(square_name: str) -> None:
+    """Handle click-based source and target square selection."""
+    selected_square = st.session_state.selected_square
+
+    if selected_square is None:
+        st.session_state.selected_square = square_name
+        st.session_state.click_move_error = None
+        return
+
+    try:
+        move_text = build_uci_move(selected_square, square_name)
+        apply_move_text(move_text)
+    except ValueError as exc:
+        st.session_state.click_move_error = f"Move not accepted: {exc}"
+        st.session_state.selected_square = None
+
+
+def render_click_move_controls(rows: list[dict[str, str]]) -> None:
+    """Render square buttons for click-based move input."""
+    st.subheader("Click square controls")
+    st.caption(
+        "Use this button board to select a source square, then a target square. "
+        "The styled board above is the main visual display. "
+        "Use manual UCI input below for promotions such as e7e8q."
+    )
+
+    selected_square = st.session_state.selected_square
+
+    if selected_square:
+        st.info(f"Selected source square: {selected_square}. Now select a target square.")
+
+    if st.session_state.click_move_error:
+        st.error(st.session_state.click_move_error)
+
+    for row in rows:
+        columns = st.columns(8)
+
+        for column, file_name in zip(columns, FILES):
+            square_name = f"{file_name}{row['rank']}"
+            piece = row[file_name]
+            label = f"{piece or '·'} {square_name}"
+
+            if selected_square == square_name:
+                label = f"▶ {label}"
+
+            if column.button(label, key=f"square-{square_name}"):
+                handle_square_click(square_name)
+                st.rerun()
+
+
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="centered")
     initialize_game_state()
@@ -123,10 +195,14 @@ def main() -> None:
         "for example e2e4, g1f3, or e7e8q for promotion."
     )
 
+    rows = board_rows(st.session_state.fen)
+
     st.markdown(
-        render_board_html(board_rows(st.session_state.fen)),
+        render_board_html(rows),
         unsafe_allow_html=True,
     )
+
+    render_click_move_controls(rows)
 
     current_turn = current_turn_label(st.session_state.fen)
 
@@ -148,13 +224,7 @@ def main() -> None:
 
     if submitted:
         try:
-            new_fen, san = apply_uci_move(st.session_state.fen, move_text)
-            ply_number = len(st.session_state.move_history) + 1
-
-            st.session_state.fen = new_fen
-            st.session_state.move_history.append(
-                f"{ply_number}. {move_text.strip().lower()} ({san})"
-            )
+            apply_move_text(move_text)
             st.rerun()
         except ValueError as exc:
             st.error(f"Move not accepted: {exc}")

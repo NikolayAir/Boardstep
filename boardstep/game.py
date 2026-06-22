@@ -31,6 +31,22 @@ def side_to_move(fen: str) -> str:
     return "White" if board.turn == chess.WHITE else "Black"
 
 
+def build_uci_move(source_square: str, target_square: str) -> str:
+    """Build a UCI move from selected source and target squares."""
+    source = source_square.strip().lower()
+    target = target_square.strip().lower()
+
+    try:
+        chess.parse_square(source)
+        chess.parse_square(target)
+    except ValueError as exc:
+        raise ValueError(
+            "Select valid source and target squares, for example e2 and e4."
+        ) from exc
+
+    return f"{source}{target}"
+
+
 def legal_move_count(fen: str) -> int:
     """Return the number of legal moves available in the current position."""
     board = chess.Board(fen)

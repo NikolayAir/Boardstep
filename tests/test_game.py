@@ -4,6 +4,7 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_rows,
+    build_uci_move,
     game_status,
     legal_move_count,
     side_to_move,
@@ -38,6 +39,16 @@ def test_apply_uci_move_accepts_extra_spaces():
 
     assert san == "Nf3"
     assert side_to_move(new_fen) == "Black"
+
+
+def test_build_uci_move_from_selected_squares():
+    assert build_uci_move("e2", "e4") == "e2e4"
+    assert build_uci_move(" G1 ", " F3 ") == "g1f3"
+
+
+def test_build_uci_move_rejects_invalid_square():
+    with pytest.raises(ValueError, match="valid source and target squares"):
+        build_uci_move("e9", "e4")
 
 
 def test_apply_uci_move_rejects_invalid_format():
