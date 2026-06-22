@@ -247,7 +247,10 @@ def main() -> None:
         st.subheader("Move history")
         st.text(" ".join(st.session_state.move_history))
 
-    with st.expander("Current FEN"):
+    with st.expander("Current position (FEN)"):
+        st.caption(
+            "Advanced: FEN is a compact text code for the current chess position."
+        )
         st.code(st.session_state.fen)
 
 
