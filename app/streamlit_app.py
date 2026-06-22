@@ -19,6 +19,13 @@ from boardstep.game import (
     validate_fen_position,
 )
 
+from boardstep.supabase_rest_storage import (
+    SUPABASE_KEY_SECRET,
+    SUPABASE_URL_SECRET,
+    SupabaseRestConfig,
+    create_supabase_rest_config,
+)
+
 FILES = tuple("abcdefgh")
 
 
@@ -240,6 +247,70 @@ def render_click_move_controls(rows: list[dict[str, str]]) -> None:
                 st.rerun()
 
 
+
+def read_shared_game_storage_config() -> tuple[SupabaseRestConfig | None, str]:
+    """Read shared game storage settings from Streamlit secrets."""
+    try:
+        url = st.secrets.get(SUPABASE_URL_SECRET)
+        key = st.secrets.get(SUPABASE_KEY_SECRET)
+    except Exception:
+        return None, "Shared game storage is not configured for this session."
+
+    try:
+        config = create_supabase_rest_config(url, key)
+    except ValueError:
+        return None, "Shared game storage secrets are missing or invalid."
+
+    return config, "Shared game storage is configured."
+
+
+def render_shared_game_controls() -> None:
+    """Render the first shared game prototype controls."""
+    with st.expander("Shared game prototype"):
+        st.caption(
+            "Planned shared game ID flow. "
+            "This will remain manual-refresh, not real-time multiplayer."
+        )
+
+        config, status_message = read_shared_game_storage_config()
+
+        if config is None:
+            st.info(status_message)
+            st.caption(
+                "Local practice still works without shared storage. "
+                "To enable this prototype later, configure SUPABASE_URL and "
+                "SUPABASE_KEY in Streamlit secrets."
+            )
+        else:
+            st.success(status_message)
+            st.caption(
+                "Storage configuration was found. "
+                "Create/load actions are intentionally disabled in this UI slice."
+            )
+
+        st.text_input(
+            "Shared game ID",
+            placeholder="Shared game ID will be used here.",
+            disabled=True,
+        )
+
+        create_column, load_column = st.columns(2)
+
+        with create_column:
+            st.button(
+                "Create shared game",
+                disabled=True,
+                help="This button will be connected in the next implementation slice.",
+            )
+
+        with load_column:
+            st.button(
+                "Load shared game",
+                disabled=True,
+                help="This button will be connected in the next implementation slice.",
+            )
+
+
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="centered")
     initialize_game_state()
@@ -253,6 +324,7 @@ def main() -> None:
     )
 
     render_fen_load_controls()
+    render_shared_game_controls()
 
     rows = board_rows(st.session_state.fen)
 
