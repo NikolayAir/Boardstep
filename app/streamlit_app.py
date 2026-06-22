@@ -15,6 +15,7 @@ from boardstep.game import (
     build_uci_move,
     game_status,
     legal_move_count,
+    legal_target_squares,
     validate_fen_position,
 )
 
@@ -198,9 +199,24 @@ def render_click_move_controls(rows: list[dict[str, str]]) -> None:
     )
 
     selected_square = st.session_state.selected_square
+    legal_targets = (
+        legal_target_squares(st.session_state.fen, selected_square)
+        if selected_square
+        else []
+    )
 
-    if selected_square:
-        st.info(f"Selected source square: {selected_square}. Now select a target square.")
+    if selected_square and legal_targets:
+        targets_text = ", ".join(legal_targets)
+        st.info(
+            f"Selected source square: {selected_square}. "
+            f"Legal targets: {targets_text}."
+        )
+
+    if selected_square and not legal_targets:
+        st.warning(
+            f"Selected source square: {selected_square}. "
+            "This square has no legal moves."
+        )
 
     if st.session_state.click_move_error:
         st.error(st.session_state.click_move_error)
@@ -212,6 +228,9 @@ def render_click_move_controls(rows: list[dict[str, str]]) -> None:
             square_name = f"{file_name}{row['rank']}"
             piece = row[file_name]
             label = f"{piece or '·'} {square_name}"
+
+            if square_name in legal_targets:
+                label = f"● {label}"
 
             if selected_square == square_name:
                 label = f"▶ {label}"
