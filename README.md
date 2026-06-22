@@ -19,7 +19,7 @@ It includes:
 * click-based move controls
 * manual move input as a fallback
 * move history
-* current FEN display
+* current position shown as FEN, a compact text code for a chess position
 * automated tests
 * GitHub Actions checks
 

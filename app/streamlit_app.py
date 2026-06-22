@@ -250,6 +250,7 @@ def main() -> None:
     with st.expander("Current position (FEN)"):
         st.caption(
             "Advanced: FEN is a compact text code for the current chess position."
+                "You can copy it for use in chess tools."
         )
         st.code(st.session_state.fen)
 
