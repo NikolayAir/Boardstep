@@ -6,6 +6,24 @@ STARTING_FEN = chess.STARTING_FEN
 FILES = tuple("abcdefgh")
 
 
+def validate_fen_position(fen: str) -> str:
+    """Validate a pasted FEN string and return a normalized FEN string."""
+    normalized_fen = fen.strip()
+
+    if not normalized_fen:
+        raise ValueError("Enter a FEN position to load.")
+
+    try:
+        board = chess.Board(normalized_fen)
+    except ValueError as exc:
+        raise ValueError("Enter a valid FEN position.") from exc
+
+    if not board.is_valid():
+        raise ValueError("Enter a valid FEN position.")
+
+    return board.fen()
+
+
 def board_rows(fen: str) -> list[dict[str, str]]:
     """Return the board as rank-indexed rows suitable for table display."""
     board = chess.Board(fen)
