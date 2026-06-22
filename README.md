@@ -29,7 +29,7 @@ You can copy the FEN from one session and paste it into another session to resto
 
 Boardstep does not support shared online games yet.
 
-The project now includes an initial design note and a small shared game state helper for a future shared turn-based mode. The intended direction is a simple shared game ID flow with external storage and manual refresh, not real-time multiplayer.
+The project includes an initial design note and a small shared game state helper for a future shared turn-based mode. The intended direction is a simple shared game ID flow with external storage and manual refresh, not real-time multiplayer.
 
 See `docs/shared-game-flow.md` for the current design note.
 
@@ -46,9 +46,9 @@ See `docs/shared-game-flow.md` for the current design note.
 
 * `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper. This does not add shared online play yet.
 * `v0.4.0` — beginner move feedback. Adds legal target-square feedback after selecting a piece and prepares the CI workflow for future Python version checks.
-* `v0.3.0` — shareable position flow using FEN. Adds FEN validation, position loading, and README documentation.
-* `v0.2.0` — deployed browser demo. Added the Streamlit Cloud demo link, session-based limitations, Streamlit Cloud import support, and clearer FEN wording.
-* `v0.1.0` — initial playable chess practice baseline. Included legal move validation, styled board display, click controls, manual UCI input, move history, tests, CI, and README documentation.
+* `v0.3.0` — shareable position flow using FEN. Adds FEN validation and position loading.
+* `v0.2.0` — deployed browser demo. Adds the Streamlit Cloud demo link, session-based limitation note, Streamlit Cloud import support, and clearer FEN wording.
+* `v0.1.0` — initial playable chess practice baseline. Includes legal move validation, styled board display, click controls, manual UCI input, move history, tests, CI, and README documentation.
 
 ## Possible next steps
 
