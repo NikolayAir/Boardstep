@@ -15,6 +15,7 @@ from boardstep.game import (
     build_uci_move,
     game_status,
     legal_move_count,
+    validate_fen_position,
 )
 
 FILES = tuple("abcdefgh")
@@ -139,6 +140,37 @@ def apply_move_text(move_text: str) -> None:
     st.session_state.click_move_error = None
 
 
+def load_fen_position(fen_text: str) -> None:
+    """Load a validated FEN position into the current session."""
+    st.session_state.fen = validate_fen_position(fen_text)
+    st.session_state.move_history = []
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+
+
+def render_fen_load_controls() -> None:
+    """Render controls for loading a position from FEN."""
+    with st.expander("Load position from FEN"):
+        st.caption(
+            "Paste a FEN position to restore a board state. "
+            "Move history will be cleared."
+        )
+
+        with st.form("fen_form"):
+            fen_text = st.text_input(
+                "FEN position",
+                placeholder=STARTING_FEN,
+            )
+            fen_submitted = st.form_submit_button("Load position")
+
+        if fen_submitted:
+            try:
+                load_fen_position(fen_text)
+                st.rerun()
+            except ValueError as exc:
+                st.error(str(exc))
+
+
 def handle_square_click(square_name: str) -> None:
     """Handle click-based source and target square selection."""
     selected_square = st.session_state.selected_square
@@ -201,6 +233,8 @@ def main() -> None:
         "for example e2e4, g1f3, or e7e8q for promotion."
     )
 
+    render_fen_load_controls()
+
     rows = board_rows(st.session_state.fen)
 
     st.markdown(
@@ -249,8 +283,8 @@ def main() -> None:
 
     with st.expander("Current position (FEN)"):
         st.caption(
-            "Advanced: FEN is a compact text code for the current chess position."
-                "You can copy it for use in chess tools."
+            "Advanced: FEN is a compact text code for the current chess position. "
+            "You can copy it for use in chess tools."
         )
         st.code(st.session_state.fen)
 

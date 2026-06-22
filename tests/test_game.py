@@ -8,6 +8,7 @@ from boardstep.game import (
     game_status,
     legal_move_count,
     side_to_move,
+    validate_fen_position,
 )
 
 
@@ -32,6 +33,29 @@ def test_apply_legal_uci_move_updates_position():
 
     assert san == "e4"
     assert side_to_move(new_fen) == "Black"
+
+
+def test_validate_fen_position_accepts_starting_position():
+    assert validate_fen_position(STARTING_FEN) == STARTING_FEN
+
+
+def test_validate_fen_position_accepts_extra_spaces():
+    assert validate_fen_position(f"  {STARTING_FEN}  ") == STARTING_FEN
+
+
+def test_validate_fen_position_rejects_empty_text():
+    with pytest.raises(ValueError, match="Enter a FEN position"):
+        validate_fen_position("   ")
+
+
+def test_validate_fen_position_rejects_invalid_text():
+    with pytest.raises(ValueError, match="valid FEN position"):
+        validate_fen_position("not-a-fen")
+
+
+def test_validate_fen_position_rejects_invalid_position():
+    with pytest.raises(ValueError, match="valid FEN position"):
+        validate_fen_position("8/8/8/8/8/8/8/8 w - - 0 1")
 
 
 def test_apply_uci_move_accepts_extra_spaces():
