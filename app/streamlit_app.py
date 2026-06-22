@@ -193,9 +193,9 @@ def render_click_move_controls(rows: list[dict[str, str]]) -> None:
     """Render square buttons for click-based move input."""
     st.subheader("Click square controls")
     st.caption(
-        "Use this button board to select a source square, then a target square. "
-        "The styled board above is the main visual display. "
-        "Use manual UCI input below for promotions such as e7e8q."
+        "Use this button board for move clicks: select a source square, then a target square. "
+        "The styled board above is currently a visual display. "
+        "Manual UCI input below is still useful for promotions such as e7e8q."
     )
 
     selected_square = st.session_state.selected_square
