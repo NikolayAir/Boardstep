@@ -65,6 +65,23 @@ def build_uci_move(source_square: str, target_square: str) -> str:
     return f"{source}{target}"
 
 
+def legal_target_squares(fen: str, source_square: str) -> list[str]:
+    """Return legal destination squares for moves from a selected source square."""
+    board = chess.Board(fen)
+    normalized_source = source_square.strip().lower()
+
+    try:
+        source = chess.parse_square(normalized_source)
+    except ValueError:
+        return []
+
+    return sorted(
+        chess.square_name(move.to_square)
+        for move in board.legal_moves
+        if move.from_square == source
+    )
+
+
 def legal_move_count(fen: str) -> int:
     """Return the number of legal moves available in the current position."""
     board = chess.Board(fen)

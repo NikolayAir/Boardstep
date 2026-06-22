@@ -7,6 +7,7 @@ from boardstep.game import (
     build_uci_move,
     game_status,
     legal_move_count,
+    legal_target_squares,
     side_to_move,
     validate_fen_position,
 )
@@ -73,6 +74,30 @@ def test_build_uci_move_from_selected_squares():
 def test_build_uci_move_rejects_invalid_square():
     with pytest.raises(ValueError, match="valid source and target squares"):
         build_uci_move("e9", "e4")
+
+
+def test_legal_target_squares_returns_pawn_moves_from_starting_position():
+    assert legal_target_squares(STARTING_FEN, "e2") == ["e3", "e4"]
+
+
+def test_legal_target_squares_returns_knight_moves_from_starting_position():
+    assert legal_target_squares(STARTING_FEN, "g1") == ["f3", "h3"]
+
+
+def test_legal_target_squares_returns_empty_list_for_empty_square():
+    assert legal_target_squares(STARTING_FEN, "e4") == []
+
+
+def test_legal_target_squares_returns_empty_list_for_blocked_piece():
+    assert legal_target_squares(STARTING_FEN, "a1") == []
+
+
+def test_legal_target_squares_handles_spaces_and_uppercase_square_input():
+    assert legal_target_squares(STARTING_FEN, " E2 ") == ["e3", "e4"]
+
+
+def test_legal_target_squares_returns_empty_list_for_invalid_square():
+    assert legal_target_squares(STARTING_FEN, "not-a-square") == []
 
 
 def test_apply_uci_move_rejects_invalid_format():
