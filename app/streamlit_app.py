@@ -1,4 +1,3 @@
-import html
 import sys
 from pathlib import Path
 
@@ -12,10 +11,6 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_rows,
-    build_uci_move,
-    game_status,
-    legal_move_count,
-    legal_target_squares,
     validate_fen_position,
 )
 
@@ -36,7 +31,10 @@ from boardstep.supabase_rest_storage import (
     save_shared_game_after_move,
 )
 
-FILES = tuple("abcdefgh")
+from app.ui_components import (
+    render_board_area,
+    render_game_panel,
+)
 
 
 def initialize_game_state() -> None:
@@ -77,84 +75,6 @@ def reset_game() -> None:
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     clear_shared_game_session()
-
-
-def render_board_html(rows: list[dict[str, str]]) -> str:
-    """Render board rows as a styled HTML chessboard."""
-    cells = [
-        """
-        <style>
-            .boardstep-board {
-                display: grid;
-                grid-template-columns: 28px repeat(8, 58px);
-                justify-content: center;
-                align-items: center;
-                margin: 1.25rem auto 1rem auto;
-                width: fit-content;
-                border: 1px solid #8a7354;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-            }
-
-            .boardstep-square {
-                width: 58px;
-                height: 58px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 36px;
-                line-height: 1;
-                font-family: "Apple Color Emoji", "Segoe UI Symbol", "Noto Color Emoji", serif;
-            }
-
-            .boardstep-light {
-                background: #f0d9b5;
-            }
-
-            .boardstep-dark {
-                background: #b58863;
-            }
-
-            .boardstep-rank-label,
-            .boardstep-file-label {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 0.85rem;
-                font-weight: 600;
-                color: #4c3a27;
-                background: #e6d3b1;
-            }
-
-            .boardstep-rank-label {
-                height: 58px;
-            }
-
-            .boardstep-file-label {
-                height: 28px;
-            }
-        </style>
-        <div class="boardstep-board">
-        """
-    ]
-
-    for row_index, row in enumerate(rows):
-        cells.append(f'<div class="boardstep-rank-label">{html.escape(row["rank"])}</div>')
-
-        for file_index, file_name in enumerate(FILES):
-            square_color = "boardstep-light" if (row_index + file_index) % 2 == 0 else "boardstep-dark"
-            piece = html.escape(row[file_name]) if row[file_name] else "&nbsp;"
-
-            cells.append(
-                f'<div class="boardstep-square {square_color}">{piece}</div>'
-            )
-
-    cells.append('<div class="boardstep-file-label"></div>')
-
-    for file_name in FILES:
-        cells.append(f'<div class="boardstep-file-label">{file_name}</div>')
-
-    cells.append("</div>")
-    return "".join(cells)
 
 
 def current_turn_label(fen: str) -> str:
@@ -258,74 +178,6 @@ def render_fen_load_controls() -> None:
                 st.rerun()
             except ValueError as exc:
                 st.error(str(exc))
-
-
-def handle_square_click(square_name: str) -> None:
-    """Handle click-based source and target square selection."""
-    selected_square = st.session_state.selected_square
-
-    if selected_square is None:
-        st.session_state.selected_square = square_name
-        st.session_state.click_move_error = None
-        return
-
-    try:
-        move_text = build_uci_move(selected_square, square_name)
-        apply_move_text(move_text)
-    except ValueError as exc:
-        st.session_state.click_move_error = f"Move not accepted: {exc}"
-        st.session_state.selected_square = None
-
-
-def render_click_move_controls(rows: list[dict[str, str]]) -> None:
-    """Render square buttons for click-based move input."""
-    st.subheader("Click to move")
-    st.caption(
-        "Click a piece, then click where it should move. "
-        "Use the typed move field only when needed, for example for promotion."
-    )
-
-    selected_square = st.session_state.selected_square
-    legal_targets = (
-        legal_target_squares(st.session_state.fen, selected_square)
-        if selected_square
-        else []
-    )
-
-    if selected_square and legal_targets:
-        targets_text = ", ".join(legal_targets)
-        st.info(
-            f"Selected source square: {selected_square}. "
-            f"Legal targets: {targets_text}."
-        )
-
-    if selected_square and not legal_targets:
-        st.warning(
-            f"Selected source square: {selected_square}. "
-            "This square has no legal moves."
-        )
-
-    if st.session_state.click_move_error:
-        st.error(st.session_state.click_move_error)
-
-    for row in rows:
-        columns = st.columns(8)
-
-        for column, file_name in zip(columns, FILES):
-            square_name = f"{file_name}{row['rank']}"
-            piece = row[file_name]
-            label = f"{piece or '·'} {square_name}"
-
-            if square_name in legal_targets:
-                label = f"● {label}"
-
-            if selected_square == square_name:
-                label = f"▶ {label}"
-
-            if column.button(label, key=f"square-{square_name}"):
-                handle_square_click(square_name)
-                st.rerun()
-
 
 
 def read_shared_game_storage_config() -> tuple[SupabaseRestConfig | None, str]:
@@ -487,7 +339,7 @@ def render_shared_game_controls() -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title="Boardstep", layout="centered")
+    st.set_page_config(page_title="Boardstep", layout="wide")
     initialize_game_state()
 
     st.title("Boardstep")
@@ -497,61 +349,25 @@ def main() -> None:
         "Click a piece, then click where it should move. Typed moves are optional."
     )
 
-    render_fen_load_controls()
     render_shared_game_controls()
 
     rows = board_rows(st.session_state.fen)
-
-    st.markdown(
-        render_board_html(rows),
-        unsafe_allow_html=True,
-    )
-
-    render_click_move_controls(rows)
-
     current_turn = current_turn_label(st.session_state.fen)
 
-    st.info(f"{current_turn} to move. Click a piece or type one legal move.")
-    st.write(f"**Game status:** {game_status(st.session_state.fen)}")
-    st.write(f"**Legal moves for {current_turn}:** {legal_move_count(st.session_state.fen)}")
+    board_col, game_col = st.columns([2, 1])
 
-    with st.form("move_form", clear_on_submit=True):
-        move_text = st.text_input(
-            "Optional typed move",
-            placeholder="e2e4",
-            help=(
-                "Type the start square and target square, for example e2e4 or g1f3. "
-                "For promotion, add the new piece, for example e7e8q."
-            ),
+    with board_col:
+        render_board_area(rows, apply_move_text)
+
+    with game_col:
+        render_game_panel(
+            current_turn=current_turn,
+            fen=st.session_state.fen,
+            move_history=st.session_state.move_history,
+            apply_move=apply_move_text,
+            reset_game=reset_game,
+            render_fen_load_controls=render_fen_load_controls,
         )
-        st.caption("Typed examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
-        submitted = st.form_submit_button(f"Play {current_turn} move")
-
-    if submitted:
-        try:
-            apply_move_text(move_text)
-            st.rerun()
-        except ValueError as exc:
-            st.error(f"Move not accepted: {exc}")
-            st.caption(
-                "Check that it is the correct side to move and that the move is legal "
-                "in the current position."
-            )
-
-    if st.button("Reset game"):
-        reset_game()
-        st.rerun()
-
-    if st.session_state.move_history:
-        st.subheader("Move history")
-        st.text(" ".join(st.session_state.move_history))
-
-    with st.expander("Current position (FEN)"):
-        st.caption(
-            "Advanced: FEN is a compact text code for the current chess position. "
-            "You can copy it for use in chess tools."
-        )
-        st.code(st.session_state.fen)
 
 
 if __name__ == "__main__":
