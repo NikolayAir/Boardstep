@@ -14,6 +14,19 @@ from boardstep.game import (
 
 FILES = tuple("abcdefgh")
 
+TEXT_PRESENTATION_SELECTOR = "\ufe0e"
+
+WHITE_TO_FILLED_SYMBOL = {
+    "♔": "♚",
+    "♕": "♛",
+    "♖": "♜",
+    "♗": "♝",
+    "♘": "♞",
+    "♙": "♟",
+}
+
+BLACK_SYMBOLS = {"♚", "♛", "♜", "♝", "♞", "♟"}
+
 ApplyMove = Callable[[str], None]
 ResetGame = Callable[[], None]
 RenderControls = Callable[[], None]
@@ -31,7 +44,7 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
                 align-items: center;
                 margin: 1.25rem auto 1rem auto;
                 width: fit-content;
-                border: 1px solid #8a7354;
+                border: 1px solid #8e6d4a;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
             }
 
@@ -43,15 +56,27 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
                 justify-content: center;
                 font-size: 40px;
                 line-height: 1;
-                font-family: "Apple Color Emoji", "Segoe UI Symbol", "Noto Color Emoji", serif;
+                font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif;
+            }
+
+            .boardstep-piece-white {
+                color: #f7f0df;
+                text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+                font-variant-emoji: text;
+            }
+
+            .boardstep-piece-black {
+                color: #20232a;
+                text-shadow: 0 1px 2px rgba(255, 255, 255, 0.15);
+                font-variant-emoji: text;
             }
 
             .boardstep-light {
-                background: #f0d9b5;
+                background: #e3cfad;
             }
 
             .boardstep-dark {
-                background: #b58863;
+                background: #ab7c58;
             }
 
             .boardstep-rank-label,
@@ -61,8 +86,8 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
                 justify-content: center;
                 font-size: 0.85rem;
                 font-weight: 600;
-                color: #4c3a27;
-                background: #e6d3b1;
+                color: #4b3927;
+                background: #dbc7a4;
             }
 
             .boardstep-rank-label {
@@ -86,7 +111,18 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
                 if (row_index + file_index) % 2 == 0
                 else "boardstep-dark"
             )
-            piece = html.escape(row[file_name]) if row[file_name] else "&nbsp;"
+            raw_piece = row[file_name]
+
+            if raw_piece in WHITE_TO_FILLED_SYMBOL:
+                piece_symbol = html.escape(
+                    WHITE_TO_FILLED_SYMBOL[raw_piece] + TEXT_PRESENTATION_SELECTOR
+                )
+                piece = f'<span class="boardstep-piece-white">{piece_symbol}</span>'
+            elif raw_piece in BLACK_SYMBOLS:
+                piece_symbol = html.escape(raw_piece + TEXT_PRESENTATION_SELECTOR)
+                piece = f'<span class="boardstep-piece-black">{piece_symbol}</span>'
+            else:
+                piece = "&nbsp;"
 
             cells.append(
                 f'<div class="boardstep-square {square_color}">{piece}</div>'
