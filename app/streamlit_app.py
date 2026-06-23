@@ -375,10 +375,10 @@ def create_shared_game_from_current_session(
 
 def render_shared_game_controls() -> None:
     """Render shared game create/load controls."""
-    with st.expander("Shared game prototype"):
+    with st.expander("Shared game (manual refresh)"):
         st.caption(
             "Create or load a shared game ID. "
-            "This remains manual-refresh, not real-time multiplayer."
+            "This uses manual refresh and is not real-time multiplayer."
         )
 
         config, status_message = read_shared_game_storage_config()
@@ -494,8 +494,7 @@ def main() -> None:
     st.caption("Chess practice.")
 
     st.write(
-        "Enter moves for both White and Black manually using UCI notation, "
-        "for example e2e4, g1f3, or e7e8q for promotion."
+        "Click a piece, then click where it should move. Typed moves are optional."
     )
 
     render_fen_load_controls()

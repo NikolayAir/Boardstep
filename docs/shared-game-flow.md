@@ -1,10 +1,10 @@
 # Shared turn-based game flow
 
-Status: design note for planned future work, linked to Issue #16.
+Status: design note for the shared turn-based game direction, linked to Issue #16. A first manual-refresh shared game prototype was implemented during the `v0.6.0` milestone.
 
-Boardstep is currently a session-based chess practice app. Each browser session has its own independent game state. This works for local practice, move validation, FEN sharing, and beginner move feedback, but it is not enough for two people to play the same shared game from different devices.
+Boardstep started as a session-based chess practice app. Local practice still uses per-session state, while the first shared-game prototype uses external storage so another browser session can load and refresh the same game by ID.
 
-This note defines the intended direction for a future shared turn-based mode. It does not implement shared online play yet.
+This note defines the intended direction for shared turn-based play. The first implemented version remains a manual-refresh prototype, not real-time multiplayer.
 
 ## Goal
 
@@ -24,7 +24,7 @@ Boardstep already supports:
 * beginner feedback for legal target squares
 * a deployed Streamlit demo
 
-The missing part is shared storage. Streamlit session state is local to one browser session, so it cannot be used as the shared source of truth for a game between two users.
+The first shared version uses external storage because Streamlit session state is local to one browser session and cannot be used as the shared source of truth for a game between two users.
 
 ## Intended flow
 
@@ -73,19 +73,19 @@ Streamlit session state is not suitable for shared games because it is not share
 
 Local files or local SQLite can be useful for local experiments and tests, but they should not be treated as reliable deployed shared storage.
 
-A small external database is the most realistic direction for a deployed shared-game prototype. The exact storage choice should be decided in a later implementation milestone.
+A small external database is the most realistic direction for a deployed shared-game prototype. The first implementation uses Supabase/PostgreSQL with a manual-refresh flow.
 
 ## First shared prototype scope
 
-A later implementation milestone could include:
+The first implemented shared prototype includes:
 
 * creating a shared game ID
 * loading a game by ID
 * saving FEN and move history after each legal move
 * manually refreshing to see the latest state
 
-It should not include real-time synchronization, user accounts, chat, timers, ratings, chess engine analysis, or a full backend server.
+It does not include real-time synchronization, user accounts, chat, timers, ratings, chess engine analysis, or a full backend server.
 
 ## Summary
 
-Boardstep can move toward shared online play in small steps. This note documents the shared-game model and storage direction before adding a database or claiming shared online play.
+Boardstep can move toward shared online play in small steps. This note documents the shared-game model and storage direction while keeping the first implemented version clearly scoped as a manual-refresh prototype.

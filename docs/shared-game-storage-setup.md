@@ -66,6 +66,18 @@ The first prototype uses a simple access model:
 * anyone with the game ID may be able to load that game
 * this limitation should be documented in public wording if the shared prototype is exposed in the demo
 
+## Manual verification
+
+The `v0.6.0` prototype should be verified with local Streamlit secrets before relying on the deployed demo:
+
+1. create a shared game ID
+2. load the same ID in another browser session
+3. make a legal move in one session
+4. manually refresh the other session
+5. confirm that the latest position and move history are loaded
+
+Do not commit local or deployed secret values.
+
 ## Security notes
 
 Credentials must not be committed.

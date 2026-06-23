@@ -48,7 +48,7 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 * Local practice is session-based unless a shared game is created or loaded.
 * Shared games use manual refresh, not real-time synchronization.
 * Shared game storage requires configured Supabase/Streamlit secrets.
-* There are no accounts, private invites, clocks, ratings, chat, or chess engine.
+* There are no accounts, private invites, clocks, ratings, or chat.
 * There is no chess engine or AI coach yet.
 
 ## Version history
@@ -65,7 +65,7 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 * improve direct board interaction
 * add simple chess exercises or puzzles
 * polish shared game status and conflict messages
-* improve shared game setup and storage permission notes
+* improve shared game setup, permissions, and deployment notes
 
 ## Run locally
 
