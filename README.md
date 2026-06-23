@@ -4,9 +4,11 @@ Boardstep is a browser-based chess practice app.
 
 It lets you play through chess moves, check whether moves are legal, load positions from FEN, and follow the current position in a simple web interface.
 
+It also includes a first manual-refresh shared game prototype. When shared storage is configured, a game can be created with a shared ID, loaded from another browser session, and refreshed manually.
+
 Live demo: https://boardstep.streamlit.app
 
-The deployed demo is session-based. Each browser session has its own game state; it is not online multiplayer yet.
+The deployed demo remains a small prototype. Shared game features require configured external storage secrets and are not real-time multiplayer.
 
 ## What you can do now
 
@@ -18,6 +20,10 @@ The deployed demo is session-based. Each browser session has its own game state;
 * view move history
 * copy the current position as FEN
 * load a position from FEN
+* create a shared game ID when shared storage is configured
+* load a shared game by ID
+* save moves to shared storage after creating or loading a shared game
+* manually refresh a shared game to load the latest saved position
 
 ## Shareable positions
 
@@ -25,25 +31,29 @@ Boardstep shows the current position as FEN, a compact text code for a chess pos
 
 You can copy the FEN from one session and paste it into another session to restore the same board position. Loading a FEN clears the move history.
 
-## Shared game planning
+## Shared game prototype
 
-Boardstep does not support shared online games yet.
+Boardstep includes a first shared game ID flow using external storage and manual refresh.
 
-The project includes an initial design note and a small shared game state helper for a future shared turn-based mode. The intended direction is a simple shared game ID flow with external storage and manual refresh, not real-time multiplayer.
+When Supabase/Streamlit secrets are configured, one browser session can create a shared game ID, another session can load it, and moves played after creating or loading the shared game are saved back to storage. Other sessions use manual refresh to load the latest saved position.
 
-See `docs/shared-game-flow.md` for the current design note.
+This is not real-time multiplayer. There are no accounts, private invites, clocks, ratings, chat, or chess engine. Anyone with the shared game ID may be able to load that game.
+
+See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage-setup.md` for storage setup notes.
 
 ## Current limitations
 
 * The main styled chessboard is visual only.
 * The separate square-button board is used for click moves.
-* Each browser session has its own game state.
-* There is no shared online game yet.
-* There is no database or external shared storage yet.
+* Local practice is session-based unless a shared game is created or loaded.
+* Shared games use manual refresh, not real-time synchronization.
+* Shared game storage requires configured Supabase/Streamlit secrets.
+* There are no accounts, private invites, clocks, ratings, chat, or chess engine.
 * There is no chess engine or AI coach yet.
 
 ## Version history
 
+* `v0.6.0` — manual-refresh shared game prototype. Adds shared game ID creation, loading by ID, move saving through configured external storage, manual refresh, and stale-state conflict messaging.
 * `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper. This does not add shared online play yet.
 * `v0.4.0` — beginner move feedback. Adds legal target-square feedback after selecting a piece and prepares the CI workflow for future Python version checks.
 * `v0.3.0` — shareable position flow using FEN. Adds FEN validation and position loading.
@@ -54,8 +64,8 @@ See `docs/shared-game-flow.md` for the current design note.
 
 * improve direct board interaction
 * add simple chess exercises or puzzles
-* prototype a shared game ID flow
-* choose a storage option for future shared turn-based games
+* polish shared game status and conflict messages
+* improve shared game setup and storage permission notes
 
 ## Run locally
 
