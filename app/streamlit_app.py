@@ -28,10 +28,12 @@ from boardstep.shared_game import (
 from boardstep.supabase_rest_storage import (
     SUPABASE_KEY_SECRET,
     SUPABASE_URL_SECRET,
+    SharedGameStorageConflictError,
     SupabaseRestConfig,
     create_shared_game,
     create_supabase_rest_config,
     load_shared_game,
+    save_shared_game_after_move,
 )
 
 FILES = tuple("abcdefgh")
@@ -61,15 +63,20 @@ def initialize_game_state() -> None:
         st.session_state.shared_game_status = None
 
 
+def clear_shared_game_session() -> None:
+    """Clear shared-game session metadata."""
+    st.session_state.shared_game_id = ""
+    st.session_state.shared_game_last_move_number = None
+    st.session_state.shared_game_status = None
+
+
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
     st.session_state.move_history = []
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
-    st.session_state.shared_game_id = ""
-    st.session_state.shared_game_last_move_number = None
-    st.session_state.shared_game_status = None
+    clear_shared_game_session()
 
 
 def render_board_html(rows: list[dict[str, str]]) -> str:
@@ -155,6 +162,49 @@ def current_turn_label(fen: str) -> str:
     return "White" if fen.split()[1] == "w" else "Black"
 
 
+def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
+    """Save the current session position to shared storage."""
+    if not st.session_state.shared_game_id:
+        return
+
+    expected_last_move_number = st.session_state.shared_game_last_move_number
+
+    if expected_last_move_number is None:
+        st.session_state.shared_game_status = (
+            "Shared game save was skipped because the saved move number is unknown. "
+            "Refresh the shared game before playing another move."
+        )
+        return
+
+    state = create_shared_game_state(
+        st.session_state.shared_game_id,
+        fen=st.session_state.fen,
+        move_history=st.session_state.move_history,
+    )
+
+    try:
+        saved_state = save_shared_game_after_move(
+            config,
+            state,
+            expected_last_move_number=expected_last_move_number,
+        )
+    except SharedGameStorageConflictError:
+        st.session_state.shared_game_status = (
+            "Shared game changed before this move was saved. "
+            "Refresh the shared game before playing another move."
+        )
+    except Exception:
+        st.session_state.shared_game_status = (
+            "Move was played locally, but it could not be saved to shared storage. "
+            "Check storage configuration and table setup."
+        )
+    else:
+        st.session_state.shared_game_last_move_number = saved_state.last_move_number
+        st.session_state.shared_game_status = (
+            f"Saved latest move to shared game `{saved_state.game_id}`."
+        )
+
+
 def apply_move_text(move_text: str) -> None:
     """Apply a move and update Streamlit session state."""
     new_fen, san = apply_uci_move(st.session_state.fen, move_text)
@@ -167,6 +217,16 @@ def apply_move_text(move_text: str) -> None:
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
 
+    if st.session_state.shared_game_id:
+        config, _ = read_shared_game_storage_config()
+
+        if config is None:
+            st.session_state.shared_game_status = (
+                "Move was played locally, but shared storage is not configured."
+            )
+        else:
+            save_current_shared_game_position(config)
+
 
 def load_fen_position(fen_text: str) -> None:
     """Load a validated FEN position into the current session."""
@@ -174,6 +234,7 @@ def load_fen_position(fen_text: str) -> None:
     st.session_state.move_history = []
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
+    clear_shared_game_session()
 
 
 def render_fen_load_controls() -> None:
@@ -336,9 +397,37 @@ def render_shared_game_controls() -> None:
         if st.session_state.shared_game_id:
             st.write(f"Current shared game ID: `{st.session_state.shared_game_id}`")
             st.caption(
-                "Moves are not saved back to shared storage yet. "
-                "That will be connected in the next implementation slice."
+                "Moves played after creating or loading this ID are saved to shared storage. "
+                "Use manual refresh on another device to load the latest saved position."
             )
+
+            if st.button(
+                "Refresh shared game",
+                disabled=config is None,
+                help="Reload the latest saved position for the current shared game ID.",
+            ):
+                if config is not None:
+                    try:
+                        refreshed_state = load_shared_game(
+                            config,
+                            st.session_state.shared_game_id,
+                        )
+                    except Exception:
+                        st.error(
+                            "Shared game could not be refreshed. "
+                            "Check storage configuration and table setup."
+                        )
+                    else:
+                        if refreshed_state is None:
+                            st.warning("The current shared game ID was not found.")
+                        else:
+                            apply_shared_game_state_to_session(
+                                refreshed_state,
+                                status_message=(
+                                    f"Refreshed shared game `{refreshed_state.game_id}`."
+                                ),
+                            )
+                            st.rerun()
 
         if st.session_state.shared_game_status:
             st.info(st.session_state.shared_game_status)
