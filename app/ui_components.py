@@ -202,28 +202,29 @@ def render_typed_move_form(
     apply_move: ApplyMove,
 ) -> None:
     """Render optional typed move input."""
-    with st.form("move_form", clear_on_submit=True):
-        move_text = st.text_input(
-            "Optional typed move",
-            placeholder="e2e4",
-            help=(
-                "Type the start square and target square, for example e2e4 or g1f3. "
-                "For promotion, add the new piece, for example e7e8q."
-            ),
-        )
-        st.caption("Typed examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
-        submitted = st.form_submit_button(f"Play {current_turn} move")
-
-    if submitted:
-        try:
-            apply_move(move_text)
-            st.rerun()
-        except ValueError as exc:
-            st.error(f"Move not accepted: {exc}")
-            st.caption(
-                "Check that it is the correct side to move and that the move is legal "
-                "in the current position."
+    with st.expander("Typed move input"):
+        with st.form("move_form", clear_on_submit=True):
+            move_text = st.text_input(
+                "Move",
+                placeholder="e2e4",
+                help=(
+                    "Type the start square and target square, for example e2e4 or g1f3. "
+                    "For promotion, add the new piece, for example e7e8q."
+                ),
             )
+            st.caption("Examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
+            submitted = st.form_submit_button(f"Play {current_turn} move")
+
+        if submitted:
+            try:
+                apply_move(move_text)
+                st.rerun()
+            except ValueError as exc:
+                st.error(f"Move not accepted: {exc}")
+                st.caption(
+                    "Check that it is the correct side to move and that the move is legal "
+                    "in the current position."
+                )
 
 
 def render_position_tools(
@@ -241,6 +242,16 @@ def render_position_tools(
     render_fen_load_controls()
 
 
+def render_game_actions(reset_game: ResetGame) -> None:
+    """Render secondary game management actions."""
+    with st.expander("Game actions"):
+        st.caption("Reset starts a new local game and clears the current move history.")
+
+        if st.button("Reset game"):
+            reset_game()
+            st.rerun()
+
+
 def render_game_panel(
     *,
     current_turn: str,
@@ -251,17 +262,14 @@ def render_game_panel(
     render_fen_load_controls: RenderControls,
 ) -> None:
     """Render game status, move history, typed input, and position tools."""
-    st.subheader("Game panel")
+    st.subheader("Current game")
 
-    st.info(f"{current_turn} to move. Click a piece or type one legal move.")
-    st.write(f"**Game status:** {game_status(fen)}")
-    st.write(f"**Legal moves for {current_turn}:** {legal_move_count(fen)}")
+    st.markdown(f"**Turn:** {current_turn}")
+    st.markdown(f"**Status:** {game_status(fen)}")
+    st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
+    st.caption("Use the board controls to play. Typed input is available below.")
 
     render_move_history(move_history)
     render_typed_move_form(current_turn, apply_move)
-
-    if st.button("Reset game"):
-        reset_game()
-        st.rerun()
-
     render_position_tools(fen, render_fen_load_controls)
+    render_game_actions(reset_game)
