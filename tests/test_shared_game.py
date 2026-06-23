@@ -3,7 +3,11 @@ from datetime import datetime, timezone
 import pytest
 
 from boardstep.game import STARTING_FEN
-from boardstep.shared_game import create_shared_game_state
+from boardstep.shared_game import (
+    SHARED_GAME_ID_ALPHABET,
+    create_shared_game_state,
+    generate_shared_game_id,
+)
 
 
 def test_create_shared_game_state_uses_starting_position() -> None:
@@ -58,3 +62,15 @@ def test_create_shared_game_state_rejects_invalid_fen_text() -> None:
 def test_create_shared_game_state_rejects_invalid_fen_position() -> None:
     with pytest.raises(ValueError, match="valid FEN position"):
         create_shared_game_state("game-005", fen="8/8/8/8/8/8/8/8 w - - 0 1")
+
+
+def test_generate_shared_game_id_uses_expected_length_and_alphabet() -> None:
+    game_id = generate_shared_game_id(length=12)
+
+    assert len(game_id) == 12
+    assert set(game_id).issubset(set(SHARED_GAME_ID_ALPHABET))
+
+
+def test_generate_shared_game_id_rejects_non_positive_length() -> None:
+    with pytest.raises(ValueError, match="length"):
+        generate_shared_game_id(length=0)

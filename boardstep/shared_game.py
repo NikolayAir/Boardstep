@@ -7,11 +7,17 @@ before a future shared-game storage layer is added.
 
 from __future__ import annotations
 
+import secrets
+
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Sequence
 
 from boardstep.game import STARTING_FEN, validate_fen_position
+
+
+SHARED_GAME_ID_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"
+DEFAULT_SHARED_GAME_ID_LENGTH = 10
 
 
 @dataclass(frozen=True)
@@ -29,6 +35,18 @@ class SharedGameState:
         """Return the number of moves stored for the shared game."""
 
         return len(self.move_history)
+
+
+def generate_shared_game_id(length: int = DEFAULT_SHARED_GAME_ID_LENGTH) -> str:
+    """Generate a compact random ID for a shared game."""
+
+    if length <= 0:
+        raise ValueError("length must be positive")
+
+    return "".join(
+        secrets.choice(SHARED_GAME_ID_ALPHABET)
+        for _ in range(length)
+    )
 
 
 def create_shared_game_state(

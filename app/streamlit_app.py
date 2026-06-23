@@ -19,11 +19,19 @@ from boardstep.game import (
     validate_fen_position,
 )
 
+from boardstep.shared_game import (
+    SharedGameState,
+    create_shared_game_state,
+    generate_shared_game_id,
+)
+
 from boardstep.supabase_rest_storage import (
     SUPABASE_KEY_SECRET,
     SUPABASE_URL_SECRET,
     SupabaseRestConfig,
+    create_shared_game,
     create_supabase_rest_config,
+    load_shared_game,
 )
 
 FILES = tuple("abcdefgh")
@@ -43,6 +51,15 @@ def initialize_game_state() -> None:
     if "click_move_error" not in st.session_state:
         st.session_state.click_move_error = None
 
+    if "shared_game_id" not in st.session_state:
+        st.session_state.shared_game_id = ""
+
+    if "shared_game_last_move_number" not in st.session_state:
+        st.session_state.shared_game_last_move_number = None
+
+    if "shared_game_status" not in st.session_state:
+        st.session_state.shared_game_status = None
+
 
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
@@ -50,6 +67,9 @@ def reset_game() -> None:
     st.session_state.move_history = []
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
+    st.session_state.shared_game_id = ""
+    st.session_state.shared_game_last_move_number = None
+    st.session_state.shared_game_status = None
 
 
 def render_board_html(rows: list[dict[str, str]]) -> str:
@@ -264,12 +284,41 @@ def read_shared_game_storage_config() -> tuple[SupabaseRestConfig | None, str]:
     return config, "Shared game storage is configured."
 
 
+def apply_shared_game_state_to_session(
+    state: SharedGameState,
+    *,
+    status_message: str,
+) -> None:
+    """Load shared game state into the current Streamlit session."""
+    st.session_state.fen = state.fen
+    st.session_state.move_history = list(state.move_history)
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+    st.session_state.shared_game_id = state.game_id
+    st.session_state.shared_game_last_move_number = state.last_move_number
+    st.session_state.shared_game_status = status_message
+
+
+def create_shared_game_from_current_session(
+    config: SupabaseRestConfig,
+) -> SharedGameState:
+    """Create a shared game from the current local session state."""
+    game_id = generate_shared_game_id()
+    state = create_shared_game_state(
+        game_id,
+        fen=st.session_state.fen,
+        move_history=st.session_state.move_history,
+    )
+
+    return create_shared_game(config, state)
+
+
 def render_shared_game_controls() -> None:
-    """Render the first shared game prototype controls."""
+    """Render shared game create/load controls."""
     with st.expander("Shared game prototype"):
         st.caption(
-            "Planned shared game ID flow. "
-            "This will remain manual-refresh, not real-time multiplayer."
+            "Create or load a shared game ID. "
+            "This remains manual-refresh, not real-time multiplayer."
         )
 
         config, status_message = read_shared_game_storage_config()
@@ -278,37 +327,75 @@ def render_shared_game_controls() -> None:
             st.info(status_message)
             st.caption(
                 "Local practice still works without shared storage. "
-                "To enable this prototype later, configure SUPABASE_URL and "
+                "To enable this prototype, configure SUPABASE_URL and "
                 "SUPABASE_KEY in Streamlit secrets."
             )
         else:
             st.success(status_message)
+
+        if st.session_state.shared_game_id:
+            st.write(f"Current shared game ID: `{st.session_state.shared_game_id}`")
             st.caption(
-                "Storage configuration was found. "
-                "Create/load actions are intentionally disabled in this UI slice."
+                "Moves are not saved back to shared storage yet. "
+                "That will be connected in the next implementation slice."
             )
 
-        st.text_input(
-            "Shared game ID",
-            placeholder="Shared game ID will be used here.",
-            disabled=True,
-        )
+        if st.session_state.shared_game_status:
+            st.info(st.session_state.shared_game_status)
 
-        create_column, load_column = st.columns(2)
+        create_disabled = config is None
 
-        with create_column:
-            st.button(
-                "Create shared game",
-                disabled=True,
-                help="This button will be connected in the next implementation slice.",
+        if st.button(
+            "Create shared game",
+            disabled=create_disabled,
+            help="Save the current board as a new shared game.",
+        ):
+            if config is not None:
+                try:
+                    state = create_shared_game_from_current_session(config)
+                except Exception:
+                    st.error(
+                        "Shared game could not be created. "
+                        "Check storage configuration and table setup."
+                    )
+                else:
+                    apply_shared_game_state_to_session(
+                        state,
+                        status_message=f"Created shared game `{state.game_id}`.",
+                    )
+                    st.rerun()
+
+        with st.form("shared_game_load_form"):
+            requested_game_id = st.text_input(
+                "Shared game ID",
+                placeholder="Paste a shared game ID.",
+                disabled=config is None,
             )
 
-        with load_column:
-            st.button(
+            load_submitted = st.form_submit_button(
                 "Load shared game",
-                disabled=True,
-                help="This button will be connected in the next implementation slice.",
+                disabled=config is None,
             )
+
+        if load_submitted and config is not None:
+            try:
+                loaded_state = load_shared_game(config, requested_game_id)
+            except ValueError as exc:
+                st.error(str(exc))
+            except Exception:
+                st.error(
+                    "Shared game could not be loaded. "
+                    "Check storage configuration and table setup."
+                )
+            else:
+                if loaded_state is None:
+                    st.warning("No shared game was found for that ID.")
+                else:
+                    apply_shared_game_state_to_session(
+                        loaded_state,
+                        status_message=f"Loaded shared game `{loaded_state.game_id}`.",
+                    )
+                    st.rerun()
 
 
 def main() -> None:
