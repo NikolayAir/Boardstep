@@ -123,10 +123,10 @@ def render_click_move_controls(
     apply_move: ApplyMove,
 ) -> None:
     """Render square buttons for click-based move input."""
-    st.subheader("Click to move")
+    st.subheader("Move controls")
     st.caption(
-        "Click a piece, then click where it should move. "
-        "Use the typed move field only when needed, for example for promotion."
+        "Use these square buttons to make moves on the board above. "
+        "Select a source square, then a target square."
     )
 
     selected_square = st.session_state.selected_square
@@ -158,7 +158,7 @@ def render_click_move_controls(
         for column, file_name in zip(columns, FILES):
             square_name = f"{file_name}{row['rank']}"
             piece = row[file_name]
-            label = f"{piece or '·'} {square_name}"
+            label = f"{piece} {square_name}" if piece else square_name
 
             if square_name in legal_targets:
                 label = f"● {label}"
@@ -166,7 +166,11 @@ def render_click_move_controls(
             if selected_square == square_name:
                 label = f"▶ {label}"
 
-            if column.button(label, key=f"square-{square_name}"):
+            if column.button(
+                label,
+                key=f"square-{square_name}",
+                use_container_width=True,
+            ):
                 handle_square_click(square_name, apply_move)
                 st.rerun()
 
