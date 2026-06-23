@@ -53,11 +53,12 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Version history
 
+* `v0.7.0` — playable UI polish. Improves the playing layout with a clearer board and game panel, tighter move controls, larger board display, and refined board/piece styling.
 * `v0.6.0` — manual-refresh shared game prototype. Adds shared game ID creation, loading by ID, move saving through configured external storage, manual refresh, and stale-state conflict messaging.
-* `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper. This does not add shared online play yet.
-* `v0.4.0` — beginner move feedback. Adds legal target-square feedback after selecting a piece and prepares the CI workflow for future Python version checks.
+* `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper.
+* `v0.4.0` — beginner move feedback. Adds legal target-square feedback after selecting a piece and updates the CI workflow for Python version checks.
 * `v0.3.0` — shareable position flow using FEN. Adds FEN validation and position loading.
-* `v0.2.0` — deployed browser demo. Adds the Streamlit Cloud demo link, session-based limitation note, Streamlit Cloud import support, and clearer FEN wording.
+* `v0.2.0` — deployed browser demo. Adds the Streamlit Cloud demo link, Streamlit Cloud import support, and clearer FEN wording.
 * `v0.1.0` — initial playable chess practice baseline. Includes legal move validation, styled board display, click controls, manual UCI input, move history, tests, CI, and README documentation.
 
 ## Possible next steps
