@@ -279,11 +279,10 @@ def handle_square_click(square_name: str) -> None:
 
 def render_click_move_controls(rows: list[dict[str, str]]) -> None:
     """Render square buttons for click-based move input."""
-    st.subheader("Click square controls")
+    st.subheader("Click to move")
     st.caption(
-        "Use this button board for move clicks: select a source square, then a target square. "
-        "The styled board above is currently a visual display. "
-        "Manual UCI input below is still useful for promotions such as e7e8q."
+        "Click a piece, then click where it should move. "
+        "Use the typed move field only when needed, for example for promotion."
     )
 
     selected_square = st.session_state.selected_square
@@ -513,20 +512,20 @@ def main() -> None:
 
     current_turn = current_turn_label(st.session_state.fen)
 
-    st.info(f"{current_turn} to move. Enter one legal move in UCI format.")
+    st.info(f"{current_turn} to move. Click a piece or type one legal move.")
     st.write(f"**Game status:** {game_status(st.session_state.fen)}")
     st.write(f"**Legal moves for {current_turn}:** {legal_move_count(st.session_state.fen)}")
 
     with st.form("move_form", clear_on_submit=True):
         move_text = st.text_input(
-            "Move in UCI notation",
+            "Optional typed move",
             placeholder="e2e4",
             help=(
-                "Use source square + target square, for example e2e4 or g1f3. "
-                "For promotion, add the promotion piece, for example e7e8q."
+                "Type the start square and target square, for example e2e4 or g1f3. "
+                "For promotion, add the new piece, for example e7e8q."
             ),
         )
-        st.caption("Examples: e2e4, g1f3, b8c6, e7e8q.")
+        st.caption("Typed examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
         submitted = st.form_submit_button(f"Play {current_turn} move")
 
     if submitted:
