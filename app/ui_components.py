@@ -26,7 +26,7 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
         <style>
             .boardstep-board {
                 display: grid;
-                grid-template-columns: 28px repeat(8, 58px);
+                grid-template-columns: 30px repeat(8, 64px);
                 justify-content: center;
                 align-items: center;
                 margin: 1.25rem auto 1rem auto;
@@ -36,12 +36,12 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
             }
 
             .boardstep-square {
-                width: 58px;
-                height: 58px;
+                width: 64px;
+                height: 64px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 36px;
+                font-size: 40px;
                 line-height: 1;
                 font-family: "Apple Color Emoji", "Segoe UI Symbol", "Noto Color Emoji", serif;
             }
@@ -66,11 +66,11 @@ def render_board_html(rows: list[dict[str, str]]) -> str:
             }
 
             .boardstep-rank-label {
-                height: 58px;
+                height: 64px;
             }
 
             .boardstep-file-label {
-                height: 28px;
+                height: 30px;
             }
         </style>
         <div class="boardstep-board">
