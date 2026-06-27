@@ -217,13 +217,7 @@ def render_click_move_controls(
     rows: list[dict[str, str]],
     apply_move: ApplyMove,
 ) -> None:
-    """Render square buttons for click-based move input."""
-    st.subheader("Move controls")
-    st.caption(
-        "Use these square buttons to make moves on the board above. "
-        "Select a source square, then a target square."
-    )
-
+    """Render click-move feedback and optional coordinate-practice controls."""
     selected_square = st.session_state.selected_square
     legal_targets = (
         legal_target_squares(st.session_state.fen, selected_square)
@@ -247,28 +241,32 @@ def render_click_move_controls(
     if st.session_state.click_move_error:
         st.error(st.session_state.click_move_error)
 
-    for row in rows:
-        columns = st.columns(8)
+    with st.expander("Coordinate practice controls"):
+        st.caption(
+            "Use these controls to practice square names or as a fallback for making moves."
+        )
 
-        for column, file_name in zip(columns, FILES):
-            square_name = f"{file_name}{row['rank']}"
-            piece = row[file_name]
-            label = f"{piece} {square_name}" if piece else square_name
+        for row in rows:
+            columns = st.columns(8)
 
-            if square_name in legal_targets:
-                label = f"● {label}"
+            for column, file_name in zip(columns, FILES):
+                square_name = f"{file_name}{row['rank']}"
+                piece = row[file_name]
+                label = f"{piece} {square_name}" if piece else square_name
 
-            if selected_square == square_name:
-                label = f"▶ {label}"
+                if square_name in legal_targets:
+                    label = f"● {label}"
 
-            if column.button(
-                label,
-                key=f"square-{square_name}",
-                use_container_width=True,
-            ):
-                handle_square_click(square_name, apply_move)
-                st.rerun()
+                if selected_square == square_name:
+                    label = f"▶ {label}"
 
+                if column.button(
+                    label,
+                    key=f"square-{square_name}",
+                    use_container_width=True,
+                ):
+                    handle_square_click(square_name, apply_move)
+                    st.rerun()
 
 def render_clickable_board(
     rows: list[dict[str, str]],
