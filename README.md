@@ -2,7 +2,7 @@
 
 Boardstep is a browser-based chess practice app.
 
-It lets you play through chess moves, check whether moves are legal, load positions from FEN, and follow the current position in a simple web interface.
+It lets you play through chess moves, check whether moves are legal, move directly on the main board, load positions from FEN, and follow the current position in a simple web interface.
 
 It also includes a first manual-refresh shared game prototype. When shared storage is configured, a game can be created with a shared ID, loaded from another browser session, and refreshed manually.
 
@@ -13,8 +13,9 @@ The deployed demo remains a small prototype. Shared game features require config
 ## What you can do now
 
 * play legal chess moves in the browser
-* use square buttons to choose a piece and then its target square
+* click the main board to choose a piece and then its target square
 * see legal target squares after selecting a piece
+* use coordinate practice controls as an optional fallback
 * type moves manually, for example `e2e4` or `g1f3`
 * use manual input for pawn promotion, for example `e7e8q`
 * view move history
@@ -43,8 +44,8 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Current limitations
 
-* The main styled chessboard is visual only.
-* The separate square-button board is used for click moves.
+* Board interaction uses click-to-move, not drag-and-drop.
+* The clickable board may take a moment to appear on first load.
 * Local practice is session-based unless a shared game is created or loaded.
 * Shared games use manual refresh, not real-time synchronization.
 * Shared game storage requires configured Supabase/Streamlit secrets.
@@ -53,6 +54,7 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Version history
 
+* `v0.8.0` — clickable main board. Adds direct source-and-target square selection on the main chessboard using the existing Python move validation flow, while keeping coordinate controls as an optional practice/fallback section.
 * `v0.7.0` — playable UI polish. Improves the playing layout with a clearer board and game panel, tighter move controls, larger board display, and refined board/piece styling.
 * `v0.6.0` — manual-refresh shared game prototype. Adds shared game ID creation, loading by ID, move saving through configured external storage, manual refresh, and stale-state conflict messaging.
 * `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper.
@@ -63,7 +65,7 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Possible next steps
 
-* improve direct board interaction
+* polish clickable board loading and responsive behavior
 * add simple chess exercises or puzzles
 * polish shared game status and conflict messages
 * improve shared game setup, permissions, and deployment notes
