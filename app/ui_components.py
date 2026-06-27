@@ -241,7 +241,13 @@ def render_click_move_controls(
     if st.session_state.click_move_error:
         st.error(st.session_state.click_move_error)
 
-    with st.expander("Coordinate practice controls"):
+    show_coordinate_controls = st.toggle(
+        "Coordinate practice controls",
+        value=False,
+        key="show_coordinate_practice_controls",
+    )
+
+    if show_coordinate_controls:
         st.caption(
             "Use these controls to practice square names or as a fallback for making moves."
         )
