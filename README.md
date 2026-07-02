@@ -15,6 +15,7 @@ The deployed demo remains a prototype. Shared game features require configured s
 * play legal chess moves in the browser
 * click the main board to choose a piece and then its target square
 * see legal target squares after selecting a piece
+* switch the board between White-at-bottom and Black-at-bottom orientation
 * use coordinate practice controls as an optional fallback
 * type moves manually, for example `e2e4` or `g1f3`
 * use manual input for pawn promotion, for example `e7e8q`
@@ -55,11 +56,14 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 * Local practice is session-based unless a shared game is created or loaded.
 * Shared games use manual refresh, not real-time synchronization.
 * Shared game storage must be configured before shared games are available.
+* Board orientation is local to the current browser/session and is not saved to shared-game state.
+* The app does not assign White/Black players or restrict moves by player side yet.
 * There are no accounts, private invites, clocks, ratings, or chat.
 * There is no chess engine or AI coach yet.
 
 ## Version history
 
+* `v0.10.0` — board orientation toggle. Adds a local White-at-bottom / Black-at-bottom board orientation setting while keeping click-to-move, coordinate labels, legal-target highlighting, typed move input, and coordinate fallback controls aligned.
 * `v0.9.0` — shared game UX polish. Makes shared games easier to create, load, refresh, leave, and understand while keeping manual refresh as the synchronization model.
 * `v0.8.0` — clickable main board. Adds direct source-and-target square selection on the main chessboard while keeping coordinate controls as an optional practice/fallback section.
 * `v0.7.0` — playable UI polish. Improves the playing layout with a clearer board and game panel, larger board display, tighter move controls, and refined board/piece styling.
@@ -72,7 +76,6 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Possible next steps
 
-* add a board orientation toggle for playing from Black's side
 * design player side selection and move restrictions
 * design shared game cleanup or delete behavior
 * add simple chess exercises or puzzles
