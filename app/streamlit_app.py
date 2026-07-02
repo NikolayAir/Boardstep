@@ -335,30 +335,35 @@ def render_shared_game_controls() -> None:
             )
 
         if load_submitted and config is not None:
-            try:
-                loaded_state = load_shared_game(config, requested_game_id)
-            except ValueError as exc:
-                st.error(str(exc))
-            except Exception:
-                st.error(
-                    "Shared game could not be loaded. "
-                    "Check the shared-game storage settings, table setup, or whether the storage service is paused."
-                )
+            normalized_game_id = requested_game_id.strip()
+
+            if not normalized_game_id:
+                st.warning("Enter a shared game ID before loading a shared game.")
             else:
-                if loaded_state is None:
-                    st.warning(
-                        "No shared game was found for that ID. "
-                        "Check that the ID was copied correctly."
+                try:
+                    loaded_state = load_shared_game(config, normalized_game_id)
+                except ValueError:
+                    st.error("Enter a valid shared game ID.")
+                except Exception:
+                    st.error(
+                        "Shared game could not be loaded. "
+                        "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                     )
                 else:
-                    apply_shared_game_state_to_session(
-                        loaded_state,
-                        status_message=(
-                            f"Loaded shared game `{loaded_state.game_id}`. "
-                            "Use manual refresh to check for later moves from the other player."
-                        ),
-                    )
-                    st.rerun()
+                    if loaded_state is None:
+                        st.warning(
+                            "No shared game was found for that ID. "
+                            "Check that the ID was copied correctly."
+                        )
+                    else:
+                        apply_shared_game_state_to_session(
+                            loaded_state,
+                            status_message=(
+                                f"Loaded shared game `{loaded_state.game_id}`. "
+                                "Use manual refresh to check for later moves from the other player."
+                            ),
+                        )
+                        st.rerun()
 
 
 def main() -> None:
