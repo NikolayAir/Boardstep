@@ -121,8 +121,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     else:
         st.session_state.shared_game_last_move_number = saved_state.last_move_number
         st.session_state.shared_game_status = (
-            f"Saved this move to shared game `{saved_state.game_id}`. "
-            "Other players need to refresh manually to see it."
+            "Move saved. The other player needs to press Refresh shared game to see it."
         )
 
 
@@ -195,7 +194,7 @@ def read_shared_game_storage_config() -> tuple[SupabaseRestConfig | None, str]:
     except ValueError:
         return None, "Shared game storage secrets are missing or invalid."
 
-    return config, "Shared game storage is configured."
+    return config, "Shared games are available."
 
 
 def apply_shared_game_state_to_session(
@@ -231,108 +230,132 @@ def render_shared_game_controls() -> None:
     """Render shared game create/load controls."""
     active_game_id = st.session_state.shared_game_id
 
-    with st.expander("Shared game (manual refresh)"):
+    with st.expander("Shared game"):
         if active_game_id:
             st.markdown("**Mode:** Shared game mode")
         else:
             st.markdown("**Mode:** Local practice mode")
 
-        st.caption(
-            "Create or load a shared game ID to play from two browser sessions. "
-            "This prototype uses manual refresh, not real-time multiplayer."
-        )
-
-        config, status_message = read_shared_game_storage_config()
-
-        if config is None:
-            st.info(status_message)
+        if active_game_id:
             st.caption(
-                "Local practice still works without shared storage. "
-                "Shared games are disabled until SUPABASE_URL and SUPABASE_KEY "
-                "are configured in Streamlit secrets."
+                "Send the game ID to the other player. "
+                "After either player moves, the other browser needs to press "
+                "Refresh shared game to see the latest board."
             )
         else:
-            st.success(status_message)
+            st.caption(
+                "Create a shared game ID or load one from another player. "
+                "Each browser updates only when Refresh shared game is pressed."
+            )
+
+        config, _ = read_shared_game_storage_config()
+
+        if config is None:
+            st.info("Shared games are not available in this session.")
+            st.caption(
+                "Local practice still works. Shared games need storage settings "
+                "to be configured first."
+            )
+        elif not active_game_id:
+            st.success("Shared games are available.")
 
         if active_game_id:
             st.markdown("**Active shared game ID**")
             st.code(active_game_id, language="text")
-            st.caption(
-                "Share this ID with the other player. Moves are saved after each legal move, "
-                "but the other browser session must use manual refresh to see the latest position."
-            )
 
-            if st.button(
-                "Refresh shared game",
-                disabled=config is None,
-                help="Reload the latest saved position for the active shared game ID.",
-            ):
-                if config is not None:
-                    try:
-                        refreshed_state = load_shared_game(
-                            config,
-                            active_game_id,
-                        )
-                    except Exception:
-                        st.error(
-                            "Shared game could not be refreshed. "
-                            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
-                        )
-                    else:
-                        if refreshed_state is None:
-                            st.warning(
-                                "The active shared game ID was not found. "
-                                "Check that the ID was copied correctly."
+            refresh_col, leave_col, _ = st.columns([1.4, 1.3, 4.3])
+
+            with refresh_col:
+                if st.button(
+                    "Refresh shared game",
+                    disabled=config is None,
+                    help="Reload the latest saved position for the active shared game ID.",
+                    use_container_width=True,
+                ):
+                    if config is not None:
+                        try:
+                            refreshed_state = load_shared_game(
+                                config,
+                                active_game_id,
+                            )
+                        except Exception:
+                            st.error(
+                                "Shared game could not be refreshed. "
+                                "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                             )
                         else:
-                            apply_shared_game_state_to_session(
-                                refreshed_state,
-                                status_message=(
-                                    f"Refreshed shared game `{refreshed_state.game_id}`. "
-                                    "The board now shows the latest saved position."
-                                ),
-                            )
-                            st.rerun()
+                            if refreshed_state is None:
+                                st.warning(
+                                    "The active shared game ID was not found. "
+                                    "Check that the ID was copied correctly."
+                                )
+                            else:
+                                apply_shared_game_state_to_session(
+                                    refreshed_state,
+                                    status_message=(
+                                        "Updated to the latest saved position."
+                                    ),
+                                )
+                                st.rerun()
+
+            with leave_col:
+                if st.button(
+                    "Leave shared game",
+                    help="Return to local practice without deleting the saved shared game.",
+                    use_container_width=True,
+                ):
+                    clear_shared_game_session()
+                    st.session_state.shared_game_status = (
+                        "Returned to local practice. The saved shared game was not deleted."
+                    )
+                    st.rerun()
 
         if st.session_state.shared_game_status:
             st.info(st.session_state.shared_game_status)
 
-        create_disabled = config is None
+        if not active_game_id:
+            create_disabled = config is None
 
-        if st.button(
-            "Create shared game",
-            disabled=create_disabled,
-            help="Save the current board as a new shared game.",
-        ):
-            if config is not None:
-                try:
-                    state = create_shared_game_from_current_session(config)
-                except Exception:
-                    st.error(
-                        "Shared game could not be created. "
-                        "Check the shared-game storage settings, table setup, or whether the storage service is paused."
-                    )
-                else:
-                    apply_shared_game_state_to_session(
-                        state,
-                        status_message=(
-                            f"Created shared game `{state.game_id}`. "
-                            "Share this ID with the other player."
-                        ),
-                    )
-                    st.rerun()
+            if st.button(
+                "Create shared game",
+                disabled=create_disabled,
+                help="Save the current board as a new shared game.",
+            ):
+                if config is not None:
+                    try:
+                        state = create_shared_game_from_current_session(config)
+                    except Exception:
+                        st.error(
+                            "Shared game could not be created. "
+                            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
+                        )
+                    else:
+                        apply_shared_game_state_to_session(
+                            state,
+                            status_message=(
+                                "Shared game created. Send the ID above to the other player."
+                            ),
+                        )
+                        st.rerun()
 
-        with st.form("shared_game_load_form"):
-            requested_game_id = st.text_input(
-                "Load shared game by ID",
-                placeholder="Paste a shared game ID.",
-                disabled=config is None,
-            )
+        load_container = (
+            st.expander("Switch to another shared game")
+            if active_game_id
+            else st.container()
+        )
 
-            load_submitted = st.form_submit_button(
-                "Load shared game",
-                disabled=config is None,
-            )
+        with load_container:
+            with st.form("shared_game_load_form"):
+                requested_game_id = st.text_input(
+                    "Load shared game by ID",
+                    placeholder="Paste a shared game ID.",
+                    disabled=config is None,
+                )
+
+                load_submitted = st.form_submit_button(
+                    "Load shared game",
+                    disabled=config is None,
+                )
 
         if load_submitted and config is not None:
             normalized_game_id = requested_game_id.strip()
@@ -359,8 +382,7 @@ def render_shared_game_controls() -> None:
                         apply_shared_game_state_to_session(
                             loaded_state,
                             status_message=(
-                                f"Loaded shared game `{loaded_state.game_id}`. "
-                                "Use manual refresh to check for later moves from the other player."
+                                "Shared game loaded. Press Refresh shared game to check for moves from the other player."
                             ),
                         )
                         st.rerun()
