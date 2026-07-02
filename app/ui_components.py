@@ -1,6 +1,8 @@
 """Reusable Streamlit UI components for Boardstep."""
 
 from collections.abc import Callable
+from pathlib import Path
+
 import streamlit as st
 
 from boardstep.game import (
@@ -10,183 +12,22 @@ from boardstep.game import (
     legal_target_squares,
 )
 
-CLICKABLE_BOARD_HTML = """
-<div id="boardstep-clickable-board" class="boardstep-clickable-board"></div>
-"""
+_COMPONENTS_DIR = Path(__file__).parent / "components"
 
-CLICKABLE_BOARD_CSS = """
-.boardstep-clickable-board {
-    display: grid;
-    grid-template-columns: 30px repeat(8, 64px);
-    justify-content: center;
-    align-items: center;
-    margin: 1.25rem auto 1rem auto;
-    width: fit-content;
-    border: 1px solid #8e6d4a;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-}
 
-.boardstep-square,
-.boardstep-rank-label,
-.boardstep-file-label {
-    box-sizing: border-box;
-}
+def _read_component_asset(filename: str) -> str:
+    return (_COMPONENTS_DIR / filename).read_text(encoding="utf-8")
 
-.boardstep-square {
-    width: 64px;
-    height: 64px;
-    border: 0;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 40px;
-    line-height: 1;
-    font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif;
-    cursor: pointer;
-}
 
-.boardstep-square:hover {
-    outline: 3px solid rgba(255, 255, 255, 0.6);
-    outline-offset: -3px;
-}
-
-.boardstep-selected {
-    outline: 3px solid #2f80ed;
-    outline-offset: -3px;
-}
-
-.boardstep-legal-target {
-    box-shadow: inset 0 0 0 4px rgba(40, 160, 80, 0.65);
-}
-
-.boardstep-piece-white {
-    color: #f7f0df;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
-    font-variant-emoji: text;
-}
-
-.boardstep-piece-black {
-    color: #20232a;
-    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.15);
-    font-variant-emoji: text;
-}
-
-.boardstep-light {
-    background: #e3cfad;
-}
-
-.boardstep-dark {
-    background: #ab7c58;
-}
-
-.boardstep-rank-label,
-.boardstep-file-label {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #4b3927;
-    background: #dbc7a4;
-}
-
-.boardstep-rank-label {
-    height: 64px;
-}
-
-.boardstep-file-label {
-    height: 30px;
-}
-"""
-
-CLICKABLE_BOARD_JS = """
-export default function(component) {
-    const { data, parentElement, setTriggerValue } = component;
-    const root = parentElement.querySelector("#boardstep-clickable-board");
-
-    const files = data?.files || ["a", "b", "c", "d", "e", "f", "g", "h"];
-    const whiteToFilledSymbol = {
-        "♔": "♚",
-        "♕": "♛",
-        "♖": "♜",
-        "♗": "♝",
-        "♘": "♞",
-        "♙": "♟"
-    };
-    const blackSymbols = new Set(["♚", "♛", "♜", "♝", "♞", "♟"]);
-
-    function makeLabel(text, className) {
-        const label = document.createElement("div");
-        label.className = className;
-        label.textContent = text;
-        return label;
-    }
-
-    function makeSquare(row, fileName, rowIndex, fileIndex) {
-        const squareName = `${fileName}${row.rank}`;
-        const button = document.createElement("button");
-        const isLight = (rowIndex + fileIndex) % 2 === 0;
-
-        button.type = "button";
-        button.className = `boardstep-square ${isLight ? "boardstep-light" : "boardstep-dark"}`;
-        button.setAttribute("aria-label", `Select ${squareName}`);
-        button.dataset.square = squareName;
-
-        if (data?.selectedSquare === squareName) {
-            button.classList.add("boardstep-selected");
-        }
-
-        if ((data?.legalTargets || []).includes(squareName)) {
-            button.classList.add("boardstep-legal-target");
-        }
-
-        const rawPiece = row[fileName] || "";
-        const piece = whiteToFilledSymbol[rawPiece] || rawPiece;
-
-        if (piece) {
-            const pieceSpan = document.createElement("span");
-            pieceSpan.textContent = piece + "\\ufe0e";
-
-            if (whiteToFilledSymbol[rawPiece]) {
-                pieceSpan.className = "boardstep-piece-white";
-            } else if (blackSymbols.has(rawPiece)) {
-                pieceSpan.className = "boardstep-piece-black";
-            }
-
-            button.appendChild(pieceSpan);
-        }
-
-        button.onclick = () => {
-            setTriggerValue("square", squareName);
-        };
-
-        return button;
-    }
-
-    root.replaceChildren();
-
-    (data?.rows || []).forEach((row, rowIndex) => {
-        root.appendChild(makeLabel(row.rank, "boardstep-rank-label"));
-
-        files.forEach((fileName, fileIndex) => {
-            root.appendChild(makeSquare(row, fileName, rowIndex, fileIndex));
-        });
-    });
-
-    root.appendChild(makeLabel("", "boardstep-file-label"));
-
-    files.forEach((fileName) => {
-        root.appendChild(makeLabel(fileName, "boardstep-file-label"));
-    });
-}
-"""
+_CLICKABLE_BOARD_HTML = _read_component_asset("clickable_board.html")
+_CLICKABLE_BOARD_CSS = _read_component_asset("clickable_board.css")
+_CLICKABLE_BOARD_JS = _read_component_asset("clickable_board.js")
 
 clickable_board_component = st.components.v2.component(
     name="boardstep_clickable_board",
-    html=CLICKABLE_BOARD_HTML,
-    css=CLICKABLE_BOARD_CSS,
-    js=CLICKABLE_BOARD_JS,
+    html=_CLICKABLE_BOARD_HTML,
+    css=_CLICKABLE_BOARD_CSS,
+    js=_CLICKABLE_BOARD_JS,
 )
 
 ApplyMove = Callable[[str], None]
@@ -272,6 +113,7 @@ def render_click_move_controls(
                 ):
                     handle_square_click(square_name, apply_move)
                     st.rerun()
+
 
 def render_clickable_board(
     rows: list[dict[str, str]],
