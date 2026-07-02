@@ -1,103 +1,113 @@
-# Clickable board component plan
+# Clickable board component
+
+Status: historical planning and implementation note for the clickable main board work. The first clickable-board implementation was added in `v0.8.0`, and the board component assets were separated into HTML, CSS, and JavaScript files during `v0.11.0`.
 
 Related issue: #29
 
 ## Goal
 
-Prototype a clickable main chessboard for Boardstep.
+The goal was to let users select a source square and a target square directly on the primary visual board, instead of using a separate square-button board for normal play.
 
-The goal is to let users select a source square and a target square directly on the primary visual board, instead of using a separate square-button board for normal play.
-
-This should improve the main playing experience while keeping Boardstep's existing Python chess logic, shared-game behavior, and fallback controls intact.
+This improved the main playing experience while keeping Boardstep's existing Python chess logic, shared-game behavior, and fallback controls intact.
 
 ## Current state
 
-Boardstep currently has:
+Boardstep now has:
 
-- a styled visual chessboard for readability
-- separate square-button controls for click-based moves
-- typed UCI input as a fallback
+- a clickable main chessboard rendered through a lightweight Streamlit component
+- separate HTML, CSS, and JavaScript assets for the board component
+- source-square selection followed by target-square selection
+- legal-target highlighting after a source square is selected
 - Python move validation using the existing chess helpers
+- typed UCI input as a fallback
+- coordinate practice controls as an optional fallback and square-name practice tool
 - shared-game create, load, refresh, and save behavior
 
-This works, but the primary visual board is not interactive. A clickable main board would make the app feel more natural to play.
+Python remains the source of truth for chess rules and legal move validation. The browser-side component reports square clicks back to Python and does not reimplement chess rules.
 
-## Preferred approach
+## Implemented approach
 
-Investigate a small Streamlit custom component for the main board interaction.
+The implemented version uses a small Streamlit component for the main board interaction.
 
-The component should stay focused on board clicks only. Python should remain the source of truth for chess rules and legal move validation.
+The component stays focused on board rendering and square-click reporting. It does not contain chess-rule logic, game-state ownership, shared-game storage logic, or real-time multiplayer behavior.
 
-The first prototype should avoid a broad frontend rewrite.
+The board component assets are kept in:
 
-## Scope
+```text
+app/components/clickable_board.html
+app/components/clickable_board.css
+app/components/clickable_board.js
+```
 
-The prototype should:
+The Python rendering and click handling live in:
 
-- report clicked squares back to Python
-- support source-square selection followed by target-square selection
-- preserve existing Python legal move validation
-- update the board after a legal move
-- keep move history working
-- keep shared-game save/load/refresh behavior unchanged
-- keep typed UCI input available
-- keep the current square-button controls as an optional fallback and coordinate-practice tool
+```text
+app/ui_components.py
+```
 
-The existing square-button controls can be moved into an expander named:
+The main application state and shared-game flow remain in:
 
-Coordinate practice controls
+```text
+app/streamlit_app.py
+```
 
-Suggested description:
+## Behavior
 
-Use these controls to practice square names or as a fallback for making moves.
+The clickable board supports this flow:
+
+1. The board is rendered from the current FEN-derived board rows.
+2. The user clicks a source square.
+3. Python stores the selected source square in Streamlit session state.
+4. Legal target squares are computed in Python and shown on the board.
+5. The user clicks a target square.
+6. Python builds a UCI move from the selected source and target squares.
+7. The existing Python move-validation path applies or rejects the move.
+8. After a legal move, the FEN and move history are updated.
+9. In shared-game mode, the updated position is saved to shared storage.
+10. Other sessions still use manual refresh to load the latest saved shared-game state.
 
 ## Technical boundaries
 
-- Prefer Streamlit Custom Components v2 if the prototype remains small and maintainable.
-- TypeScript may be added for the frontend component.
-- React should only be added if it clearly simplifies the component structure.
-- Do not reimplement chess rules in TypeScript.
-- Do not move legal move validation into the browser.
-- Do not change shared-game storage.
-- Do not add real-time multiplayer.
-- Do not add a chess engine.
-- Do not remove typed UCI input.
-- Do not remove FEN tools.
+The implementation keeps these boundaries:
 
-## Acceptance criteria
+- chess rules stay in Python
+- legal move validation stays in Python
+- the browser-side component reports square clicks only
+- shared-game storage is unchanged
+- shared games remain manual-refresh, not real-time multiplayer
+- typed UCI input remains available
+- FEN tools remain available
+- coordinate practice controls remain available as an optional fallback
 
-- A user can select a source square on the main board.
-- A user can select a target square on the main board.
-- Legal moves still use the existing Python validation path.
-- Illegal moves still produce user-facing feedback.
-- The board updates after a legal move.
-- Move history continues to update.
-- Shared-game move saving continues to work.
-- Coordinate controls remain available as an optional practice/fallback section.
-- Existing tests pass.
-- The deployed Streamlit app remains functional.
+The current implementation uses plain JavaScript. TypeScript or React are not required for the current component.
 
-## Validation plan
+## Validation
 
-Run the existing project checks:
+The expected checks are:
 
-- python -m compileall app boardstep tests
-- python -m pytest -q
-- git diff --check
+```zsh
+python -m compileall app boardstep tests
+python -m pytest -q
+git diff --check
+```
 
-Also manually check:
+Manual checks should include:
 
 - source-square selection
 - target-square selection
 - legal move application
 - illegal move feedback
+- legal-target highlighting
 - local game behavior
-- shared-game move behavior
+- shared-game move saving
+- shared-game manual refresh
 - coordinate practice controls
 - typed move fallback
 - FEN tools
 
 ## Non-goals
+
+The clickable-board work does not include:
 
 - drag-and-drop pieces
 - animations

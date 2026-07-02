@@ -4,7 +4,7 @@ Status: historical planning note for the first `v0.6.0` shared game ID prototype
 
 Before the `v0.6.0` work, Boardstep supported local chess practice, FEN loading, beginner move feedback, and a shared game state helper foundation. The app was still session-based: each browser session had its own state, so two users could not yet continue the same game from different devices.
 
-The `v0.6.0` milestone adds a small shared game ID prototype with external storage and manual refresh.
+The `v0.6.0` milestone added a small shared game ID prototype with external storage and manual refresh.
 
 ## Goal
 
@@ -24,7 +24,7 @@ Reasons:
 * avoids adding a separate backend at this stage
 * supports configuration through Streamlit secrets instead of committed credentials
 
-This choice was tested through a small storage slice before the shared-game UI was expanded.
+This choice was tested through a small storage slice before the shared-game UI was expanded. The current implementation uses Supabase/PostgreSQL through REST from the Python Streamlit app.
 
 ## First data model
 

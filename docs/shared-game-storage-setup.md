@@ -4,7 +4,7 @@ Status: setup note for the `v0.6.0` manual-refresh shared game storage prototype
 
 Boardstep uses local Streamlit session state for local practice. The shared game prototype uses external storage so that two browser sessions can load and update the same game by ID.
 
-The first storage target is Supabase/PostgreSQL.
+The current storage target is Supabase/PostgreSQL.
 
 ## Table
 
@@ -68,7 +68,7 @@ The first prototype uses a simple access model:
 
 ## Manual verification
 
-The `v0.6.0` prototype should be verified with local Streamlit secrets before relying on the deployed demo:
+The shared-game setup can be verified with local Streamlit secrets before relying on the deployed demo:
 
 1. create a shared game ID
 2. load the same ID in another browser session
@@ -82,6 +82,6 @@ Do not commit local or deployed secret values.
 
 Credentials must not be committed.
 
-Elevated Supabase keys should not be exposed in public code or browser-facing logic. Database permissions and Row Level Security should be configured deliberately for the first prototype.
+Elevated Supabase keys should not be exposed in public code or browser-facing logic. Database permissions and Row Level Security should be configured deliberately for the prototype.
 
-The first version remains a small manual-refresh prototype, not real-time multiplayer.
+The shared-game model remains a small manual-refresh prototype, not real-time multiplayer.
