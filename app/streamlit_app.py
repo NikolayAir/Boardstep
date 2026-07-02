@@ -412,50 +412,58 @@ def render_shared_game_refresh_shortcut() -> None:
     st.caption("Check for the other player’s latest move.")
 
 
+def render_app_header() -> None:
+    """Render the compact application heading."""
+    st.title("Boardstep")
+    st.caption(
+        "Click-to-move chess practice with optional manual-refresh shared games."
+    )
+
+
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="wide")
     initialize_game_state()
 
-    st.title("Boardstep")
-    st.caption("Chess practice.")
-
-    st.write(
-        "Click a piece, then click where it should move. Typed moves are optional."
-    )
-
+    render_app_header()
     render_shared_game_controls()
 
-    board_col, game_col = st.columns([2, 1])
+    board_col, game_col = st.columns([1.65, 1], gap="large")
 
     with board_col:
-        board_orientation = st.radio(
-            "Board orientation",
-            options=("white", "black"),
-            format_func=lambda value: (
-                "White at bottom" if value == "white" else "Black at bottom"
-            ),
-            horizontal=True,
-            key="board_orientation",
-            help=(
-                "This changes only your local board view. "
-                "It is not saved to shared games."
-            ),
-        )
+        with st.container(border=True):
+            _, orientation_col, _ = st.columns([0.85, 1.9, 0.25], gap="small")
 
-        rows = board_rows(st.session_state.fen, orientation=board_orientation)
-        files = board_files(board_orientation)
-        render_board_area(rows, files, apply_move_text)
+            with orientation_col:
+                board_orientation = st.radio(
+                    "Board orientation",
+                    options=("white", "black"),
+                    format_func=lambda value: (
+                        "White at bottom" if value == "white" else "Black at bottom"
+                    ),
+                    horizontal=True,
+                    key="board_orientation",
+                    label_visibility="collapsed",
+                    help=(
+                        "This changes only your local board view. "
+                        "It is not saved to shared games."
+                    ),
+                )
+
+            rows = board_rows(st.session_state.fen, orientation=board_orientation)
+            files = board_files(board_orientation)
+            render_board_area(rows, files, apply_move_text)
 
     with game_col:
-        render_shared_game_refresh_shortcut()
+        with st.container(border=True):
+            render_shared_game_refresh_shortcut()
 
-        render_game_panel(
-            fen=st.session_state.fen,
-            move_history=st.session_state.move_history,
-            apply_move=apply_move_text,
-            reset_game=reset_game,
-            render_fen_load_controls=render_fen_load_controls,
-        )
+            render_game_panel(
+                fen=st.session_state.fen,
+                move_history=st.session_state.move_history,
+                apply_move=apply_move_text,
+                reset_game=reset_game,
+                render_fen_load_controls=render_fen_load_controls,
+            )
 
 
 if __name__ == "__main__":

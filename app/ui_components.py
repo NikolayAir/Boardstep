@@ -234,7 +234,6 @@ def render_game_panel(
 
     st.markdown(f"**Status:** {game_status(fen)}")
     st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
-    st.caption("Use the board controls to play. Typed input is available below.")
 
     render_move_history(move_history)
     render_typed_move_form(apply_move)
