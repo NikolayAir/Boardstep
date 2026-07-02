@@ -1,8 +1,10 @@
 # Boardstep
 
-Boardstep is a browser-based chess practice app.
+Boardstep is a browser-based chess practice app built with Python and Streamlit.
 
-It lets you play through chess moves, check whether moves are legal, move directly on the main board, load positions from FEN, and follow the current position in a simple web interface.
+It currently lets you practice legal chess moves on an interactive board, load positions from FEN, and follow the current position in a simple web interface.
+
+Chess rules and move validation remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
 It also includes a manual-refresh shared game prototype. You can create a shared game ID, load it in another browser session, refresh manually to see the latest saved position, and leave shared mode without deleting the saved game.
 
@@ -10,26 +12,43 @@ Live demo: https://boardstep.streamlit.app
 
 The deployed demo remains a prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
 
-## What you can do now
+## How it works
 
-* play legal chess moves in the browser
-* click the main board to choose a piece and then its target square
+```mermaid
+flowchart LR
+    UI["Streamlit app"] --> Board["Clickable board component"]
+    Board --> Click["Square click"]
+    Click --> State["Streamlit session state"]
+    State --> Rules["python-chess move validation"]
+    Rules --> Position["Updated FEN and move history"]
+    Position --> UI
+    Position -. "save move in shared mode" .-> Storage["Supabase/PostgreSQL via REST"]
+    UI -. "manual refresh" .-> Storage
+    Storage -. "loaded shared state" .-> State
+```
+
+## Current features
+
+Local practice:
+
+* practice legal chess moves on an interactive board
+* select a source square and target square directly on the main board
 * see legal target squares after selecting a piece
-* switch the board between White-at-bottom and Black-at-bottom orientation
-* use coordinate practice controls as an optional fallback
-* type moves manually, for example `e2e4` or `g1f3`
-* use manual input for pawn promotion, for example `e7e8q`
+* switch the local board orientation between White-at-bottom and Black-at-bottom
+* use coordinate practice controls or typed UCI moves as fallback input
 * view move history
 * copy the current position as FEN
 * load a position from FEN
+
+Manual-refresh shared game prototype:
+
 * create a shared game ID when shared storage is configured
-* load a shared game by ID
+* load a shared game by ID in another browser session
 * see whether the app is in local practice mode or shared game mode
 * find and reuse the active shared game ID
 * save moves to shared storage after creating or loading a shared game
 * manually refresh a shared game to load the latest saved position
-* use a board-side refresh shortcut while playing a shared game
-* leave shared game mode and return to local practice without deleting the saved shared game
+* leave shared game mode without deleting the saved shared game
 
 ## Shareable positions
 
@@ -39,30 +58,31 @@ You can copy the FEN from one session and paste it into another session to resto
 
 ## Shared game prototype
 
-Boardstep includes a manual-refresh shared game ID flow using external storage.
+Boardstep includes a manual-refresh shared game flow backed by external storage.
 
-Boardstep can share a game through a game ID. One browser creates the ID, and another browser loads it. Moves are saved after they are played, and the other browser uses Refresh shared game to load the latest saved position.
+One browser session creates a shared game ID, and another session loads the same ID. After a move is played, it is saved to storage. The other session then uses `Refresh shared game` to load the latest saved position.
 
-You can also leave shared game mode locally. This returns the app to local practice without deleting the saved shared game.
+Leaving shared game mode returns the current browser session to local practice. It does not delete the saved shared game.
 
-This is not real-time multiplayer. There are no accounts, private invites, clocks, ratings, chat, or chess engine. Anyone with the shared game ID may be able to load that game.
+This is not real-time multiplayer. There are no accounts, private invites, clocks, ratings, chat, or chess engine. Anyone with the shared game ID can load that game.
 
 See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage-setup.md` for storage setup notes.
 
 ## Current limitations
 
+Boardstep is still a prototype, with a deliberately simple shared-game model.
+
 * Board interaction uses click-to-move, not drag-and-drop.
 * The clickable board may take a moment to appear on first load.
 * Local practice is session-based unless a shared game is created or loaded.
-* Shared games use manual refresh, not real-time synchronization.
-* Shared game storage must be configured before shared games are available.
+* Shared games use manual refresh, require configured storage, and are not real-time synchronized.
 * Board orientation is local to the current browser/session and is not saved to shared-game state.
-* The app does not assign White/Black players or restrict moves by player side yet.
-* There are no accounts, private invites, clocks, ratings, or chat.
-* There is no chess engine or AI coach yet.
+* Shared games do not assign White/Black players or restrict moves by player side yet.
+* There are no accounts, private invites, clocks, ratings, chat, chess engine, or AI coach.
 
 ## Version history
 
+* `v0.11.0` — frontend assets and layout polish. Separates the clickable board into a lightweight JavaScript component with HTML and CSS assets, adds a modest Streamlit theme, and groups the board and game panel more clearly.
 * `v0.10.0` — board orientation toggle. Adds a local White-at-bottom / Black-at-bottom board orientation setting while keeping click-to-move, coordinate labels, legal-target highlighting, typed move input, and coordinate fallback controls aligned.
 * `v0.9.0` — shared game UX polish. Makes shared games easier to create, load, refresh, leave, and understand while keeping manual refresh as the synchronization model.
 * `v0.8.0` — clickable main board. Adds direct source-and-target square selection on the main chessboard while keeping coordinate controls as an optional practice/fallback section.
@@ -76,16 +96,21 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 
 ## Possible next steps
 
-* design player side selection and move restrictions
-* design shared game cleanup or delete behavior
-* add simple chess exercises or puzzles
-* polish clickable board loading and responsive behavior
+* define player side selection for shared games
+* add side-based move rules for shared game mode
+* add a lightweight game summary panel
+* improve clickable-board loading and responsive layout
 
 ## Run locally
 
 ```zsh
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
 python -m streamlit run app/streamlit_app.py
 ```
+
+Shared-game storage is optional for local practice. To configure shared games, see `docs/shared-game-storage-setup.md`.
 
 ## Checks
 
@@ -94,3 +119,9 @@ python -m compileall app boardstep tests
 python -m pytest -q
 git diff --check
 ```
+
+## License
+
+No open-source license is currently granted. All rights reserved.
+
+You may view this repository on GitHub. Copying, redistribution, or reuse of the code requires prior permission.
