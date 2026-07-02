@@ -8,7 +8,7 @@ It also includes a manual-refresh shared game prototype. You can create a shared
 
 Live demo: https://boardstep.streamlit.app
 
-The deployed demo remains a small prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
+The deployed demo remains a prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
 
 ## What you can do now
 
@@ -64,7 +64,7 @@ See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage
 * `v0.8.0` — clickable main board. Adds direct source-and-target square selection on the main chessboard while keeping coordinate controls as an optional practice/fallback section.
 * `v0.7.0` — playable UI polish. Improves the playing layout with a clearer board and game panel, larger board display, tighter move controls, and refined board/piece styling.
 * `v0.6.0` — manual-refresh shared game prototype. Adds shared game ID creation, loading by ID, move saving through configured external storage, manual refresh, and stale-state conflict messaging.
-* `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a small shared game state helper, and tests for the helper.
+* `v0.5.0` — shared game foundation. Adds a shared turn-based game design note, a shared game state helper, and tests for the helper.
 * `v0.4.0` — beginner move feedback. Adds legal target-square feedback after selecting a piece and keeps CI checks focused on the supported Python version.
 * `v0.3.0` — shareable position flow using FEN. Adds FEN validation and position loading.
 * `v0.2.0` — deployed browser demo. Adds the Streamlit Cloud demo link, Streamlit Cloud import support, and clearer FEN wording.
