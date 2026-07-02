@@ -1,9 +1,33 @@
 """Core chess-state helpers for the Boardstep Streamlit app."""
 
 import chess
+from typing import Literal
 
 STARTING_FEN = chess.STARTING_FEN
 FILES = tuple("abcdefgh")
+BoardOrientation = Literal["white", "black"]
+
+
+def board_files(orientation: BoardOrientation = "white") -> tuple[str, ...]:
+    """Return file labels in display order for the selected board orientation."""
+    if orientation == "white":
+        return FILES
+
+    if orientation == "black":
+        return tuple(reversed(FILES))
+
+    raise ValueError("Board orientation must be 'white' or 'black'.")
+
+
+def board_ranks(orientation: BoardOrientation = "white") -> tuple[int, ...]:
+    """Return ranks in display order for the selected board orientation."""
+    if orientation == "white":
+        return tuple(range(8, 0, -1))
+
+    if orientation == "black":
+        return tuple(range(1, 9))
+
+    raise ValueError("Board orientation must be 'white' or 'black'.")
 
 
 def validate_fen_position(fen: str) -> str:
@@ -24,13 +48,15 @@ def validate_fen_position(fen: str) -> str:
     return board.fen()
 
 
-def board_rows(fen: str) -> list[dict[str, str]]:
+def board_rows(
+    fen: str,
+    orientation: BoardOrientation = "white",
+) -> list[dict[str, str]]:
     """Return the board as rank-indexed rows suitable for table display."""
     board = chess.Board(fen)
     rows = []
 
-    # Display ranks from White's perspective: rank 8 at the top, rank 1 at the bottom.
-    for rank in range(8, 0, -1):
+    for rank in board_ranks(orientation):
         row = {"rank": str(rank)}
 
         for file_index, file_name in enumerate(FILES):

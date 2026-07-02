@@ -10,8 +10,6 @@ from boardstep.game import (
     legal_target_squares,
 )
 
-FILES = tuple("abcdefgh")
-
 CLICKABLE_BOARD_HTML = """
 <div id="boardstep-clickable-board" class="boardstep-clickable-board"></div>
 """
@@ -107,7 +105,7 @@ export default function(component) {
     const { data, parentElement, setTriggerValue } = component;
     const root = parentElement.querySelector("#boardstep-clickable-board");
 
-    const files = ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const files = data?.files || ["a", "b", "c", "d", "e", "f", "g", "h"];
     const whiteToFilledSymbol = {
         "♔": "♚",
         "♕": "♛",
@@ -215,6 +213,7 @@ def handle_square_click(square_name: str, apply_move: ApplyMove) -> None:
 
 def render_click_move_controls(
     rows: list[dict[str, str]],
+    files: tuple[str, ...],
     apply_move: ApplyMove,
 ) -> None:
     """Render click-move feedback and optional coordinate-practice controls."""
@@ -253,9 +252,9 @@ def render_click_move_controls(
         )
 
         for row in rows:
-            columns = st.columns(8)
+            columns = st.columns(len(files))
 
-            for column, file_name in zip(columns, FILES):
+            for column, file_name in zip(columns, files):
                 square_name = f"{file_name}{row['rank']}"
                 piece = row[file_name]
                 label = f"{piece} {square_name}" if piece else square_name
@@ -276,6 +275,7 @@ def render_click_move_controls(
 
 def render_clickable_board(
     rows: list[dict[str, str]],
+    files: tuple[str, ...],
     apply_move: ApplyMove,
 ) -> None:
     """Render the clickable main chessboard."""
@@ -289,6 +289,7 @@ def render_clickable_board(
     result = clickable_board_component(
         data={
             "rows": rows,
+            "files": list(files),
             "selectedSquare": selected_square,
             "legalTargets": legal_targets,
         },
@@ -306,12 +307,13 @@ def render_clickable_board(
 
 def render_board_area(
     rows: list[dict[str, str]],
+    files: tuple[str, ...],
     apply_move: ApplyMove,
 ) -> None:
     """Render the visual board and playable square controls."""
-    render_clickable_board(rows, apply_move)
+    render_clickable_board(rows, files, apply_move)
 
-    render_click_move_controls(rows, apply_move)
+    render_click_move_controls(rows, files, apply_move)
 
 
 def render_move_history(move_history: list[str]) -> None:

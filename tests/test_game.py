@@ -3,6 +3,8 @@ import pytest
 from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
+    board_files,
+    board_ranks,
     board_rows,
     build_uci_move,
     game_status,
@@ -117,3 +119,31 @@ def test_game_status_detects_checkmate():
         fen, _san = apply_uci_move(fen, move_text)
 
     assert game_status(fen) == "Checkmate. White wins."
+
+
+def test_board_files_returns_white_orientation_by_default():
+    assert board_files() == ("a", "b", "c", "d", "e", "f", "g", "h")
+
+
+def test_board_files_returns_black_orientation_order():
+    assert board_files("black") == ("h", "g", "f", "e", "d", "c", "b", "a")
+
+
+def test_board_ranks_returns_white_orientation_by_default():
+    assert board_ranks() == (8, 7, 6, 5, 4, 3, 2, 1)
+
+
+def test_board_ranks_returns_black_orientation_order():
+    assert board_ranks("black") == (1, 2, 3, 4, 5, 6, 7, 8)
+
+
+def test_board_rows_support_black_orientation():
+    rows = board_rows(STARTING_FEN, orientation="black")
+
+    assert rows[0]["rank"] == "1"
+    assert rows[-1]["rank"] == "8"
+    assert rows[0]["e"] == "♔"
+    assert rows[0]["d"] == "♕"
+    assert rows[-1]["e"] == "♚"
+    assert rows[-1]["d"] == "♛"
+
