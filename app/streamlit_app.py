@@ -10,6 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
+    board_files,
     board_rows,
     validate_fen_position,
 )
@@ -50,6 +51,9 @@ def initialize_game_state() -> None:
 
     if "click_move_error" not in st.session_state:
         st.session_state.click_move_error = None
+
+    if "board_orientation" not in st.session_state:
+        st.session_state.board_orientation = "white"
 
     if "shared_game_id" not in st.session_state:
         st.session_state.shared_game_id = ""
@@ -421,11 +425,26 @@ def main() -> None:
 
     render_shared_game_controls()
 
-    rows = board_rows(st.session_state.fen)
     board_col, game_col = st.columns([2, 1])
 
     with board_col:
-        render_board_area(rows, apply_move_text)
+        board_orientation = st.radio(
+            "Board orientation",
+            options=("white", "black"),
+            format_func=lambda value: (
+                "White at bottom" if value == "white" else "Black at bottom"
+            ),
+            horizontal=True,
+            key="board_orientation",
+            help=(
+                "This changes only your local board view. "
+                "It is not saved to shared games."
+            ),
+        )
+
+        rows = board_rows(st.session_state.fen, orientation=board_orientation)
+        files = board_files(board_orientation)
+        render_board_area(rows, files, apply_move_text)
 
     with game_col:
         render_shared_game_refresh_shortcut()
