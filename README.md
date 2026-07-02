@@ -10,6 +10,8 @@ It also includes a manual-refresh shared game prototype. You can create a shared
 
 Live demo: https://boardstep.streamlit.app
 
+![Boardstep v0.11.0 main layout](docs/assets/boardstep-v0.11.0-main-layout.png)
+
 The deployed demo remains a prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
 
 ## How it works
