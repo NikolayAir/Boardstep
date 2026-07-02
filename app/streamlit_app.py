@@ -116,7 +116,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     except Exception:
         st.session_state.shared_game_status = (
             "This move was kept locally, but it could not be saved to shared storage. "
-            "Check the storage configuration and table setup."
+            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
         )
     else:
         st.session_state.shared_game_last_move_number = saved_state.last_move_number
@@ -276,7 +276,7 @@ def render_shared_game_controls() -> None:
                     except Exception:
                         st.error(
                             "Shared game could not be refreshed. "
-                            "Check the storage configuration and table setup."
+                            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                         )
                     else:
                         if refreshed_state is None:
@@ -310,7 +310,7 @@ def render_shared_game_controls() -> None:
                 except Exception:
                     st.error(
                         "Shared game could not be created. "
-                        "Check the storage configuration and table setup."
+                        "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                     )
                 else:
                     apply_shared_game_state_to_session(
@@ -342,7 +342,7 @@ def render_shared_game_controls() -> None:
             except Exception:
                 st.error(
                     "Shared game could not be loaded. "
-                    "Check the storage configuration and table setup."
+                    "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                 )
             else:
                 if loaded_state is None:
