@@ -324,7 +324,6 @@ def render_move_history(move_history: list[str]) -> None:
 
 
 def render_typed_move_form(
-    current_turn: str,
     apply_move: ApplyMove,
 ) -> None:
     """Render optional typed move input."""
@@ -339,7 +338,7 @@ def render_typed_move_form(
                 ),
             )
             st.caption("Examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
-            submitted = st.form_submit_button(f"Play {current_turn} move")
+            submitted = st.form_submit_button("Play move")
 
         if submitted:
             try:
@@ -380,7 +379,6 @@ def render_game_actions(reset_game: ResetGame) -> None:
 
 def render_game_panel(
     *,
-    current_turn: str,
     fen: str,
     move_history: list[str],
     apply_move: ApplyMove,
@@ -390,12 +388,11 @@ def render_game_panel(
     """Render game status, move history, typed input, and position tools."""
     st.subheader("Current game")
 
-    st.markdown(f"**Turn:** {current_turn}")
     st.markdown(f"**Status:** {game_status(fen)}")
     st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
     st.caption("Use the board controls to play. Typed input is available below.")
 
     render_move_history(move_history)
-    render_typed_move_form(current_turn, apply_move)
+    render_typed_move_form(apply_move)
     render_position_tools(fen, render_fen_load_controls)
     render_game_actions(reset_game)

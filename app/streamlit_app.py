@@ -77,11 +77,6 @@ def reset_game() -> None:
     clear_shared_game_session()
 
 
-def current_turn_label(fen: str) -> str:
-    """Return the side to move from the current FEN string."""
-    return "White" if fen.split()[1] == "w" else "Black"
-
-
 def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     """Save the current session position to shared storage."""
     if not st.session_state.shared_game_id:
@@ -226,6 +221,42 @@ def create_shared_game_from_current_session(
     return create_shared_game(config, state)
 
 
+def refresh_current_shared_game(config: SupabaseRestConfig) -> None:
+    """Refresh the current shared game from shared storage."""
+    active_game_id = st.session_state.shared_game_id
+
+    if not active_game_id:
+        return
+
+    try:
+        refreshed_state = load_shared_game(config, active_game_id)
+    except Exception:
+        st.session_state.shared_game_status = (
+            "Shared game could not be refreshed. "
+            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
+        )
+        return
+
+    if refreshed_state is None:
+        st.session_state.shared_game_status = (
+            "The active shared game ID was not found. "
+            "Check that the ID was copied correctly."
+        )
+        return
+
+    previous_move_number = st.session_state.shared_game_last_move_number
+
+    if refreshed_state.last_move_number == previous_move_number:
+        status_message = "No new move found yet."
+    else:
+        status_message = "Updated to the latest saved position."
+
+    apply_shared_game_state_to_session(
+        refreshed_state,
+        status_message=status_message,
+    )
+
+
 def render_shared_game_controls() -> None:
     """Render shared game create/load controls."""
     active_game_id = st.session_state.shared_game_id
@@ -263,40 +294,7 @@ def render_shared_game_controls() -> None:
             st.markdown("**Active shared game ID**")
             st.code(active_game_id, language="text")
 
-            refresh_col, leave_col, _ = st.columns([1.4, 1.3, 4.3])
-
-            with refresh_col:
-                if st.button(
-                    "Refresh shared game",
-                    disabled=config is None,
-                    help="Reload the latest saved position for the active shared game ID.",
-                    use_container_width=True,
-                ):
-                    if config is not None:
-                        try:
-                            refreshed_state = load_shared_game(
-                                config,
-                                active_game_id,
-                            )
-                        except Exception:
-                            st.error(
-                                "Shared game could not be refreshed. "
-                                "Check the shared-game storage settings, table setup, or whether the storage service is paused."
-                            )
-                        else:
-                            if refreshed_state is None:
-                                st.warning(
-                                    "The active shared game ID was not found. "
-                                    "Check that the ID was copied correctly."
-                                )
-                            else:
-                                apply_shared_game_state_to_session(
-                                    refreshed_state,
-                                    status_message=(
-                                        "Updated to the latest saved position."
-                                    ),
-                                )
-                                st.rerun()
+            leave_col, _ = st.columns([1.3, 5.7])
 
             with leave_col:
                 if st.button(
@@ -339,7 +337,7 @@ def render_shared_game_controls() -> None:
                         st.rerun()
 
         load_container = (
-            st.expander("Switch to another shared game")
+            st.expander("Switch to an existing shared game")
             if active_game_id
             else st.container()
         )
@@ -388,6 +386,28 @@ def render_shared_game_controls() -> None:
                         st.rerun()
 
 
+def render_shared_game_refresh_shortcut() -> None:
+    """Render a board-side refresh shortcut for active shared games."""
+    if not st.session_state.shared_game_id:
+        return
+
+    config, _ = read_shared_game_storage_config()
+
+    st.write("")
+    st.markdown("**Shared game**")
+
+    if st.button(
+        "Refresh shared game",
+        disabled=config is None,
+        help="Reload the latest saved position for the active shared game ID.",
+    ):
+        if config is not None:
+            refresh_current_shared_game(config)
+            st.rerun()
+
+    st.caption("Check for the other player’s latest move.")
+
+
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="wide")
     initialize_game_state()
@@ -402,16 +422,15 @@ def main() -> None:
     render_shared_game_controls()
 
     rows = board_rows(st.session_state.fen)
-    current_turn = current_turn_label(st.session_state.fen)
-
     board_col, game_col = st.columns([2, 1])
 
     with board_col:
         render_board_area(rows, apply_move_text)
 
     with game_col:
+        render_shared_game_refresh_shortcut()
+
         render_game_panel(
-            current_turn=current_turn,
             fen=st.session_state.fen,
             move_history=st.session_state.move_history,
             apply_move=apply_move_text,
