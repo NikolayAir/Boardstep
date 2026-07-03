@@ -90,6 +90,36 @@ def test_intermediate_returns_legal_move_from_starting_position():
     assert chess.Move.from_uci(move_text) in board.legal_moves
 
 
+def test_intermediate_prefers_reasonable_opening_move_from_starting_position():
+    assert choose_computer_move(
+        STARTING_FEN,
+        "intermediate",
+        rng=random.Random(1),
+    ) in {"c2c3", "c2c4", "d2d3", "d2d4", "e2e3", "e2e4", "g1f3", "b1c3"}
+
+
+def test_intermediate_avoids_edge_knight_opening_move():
+    assert choose_computer_move(
+        STARTING_FEN,
+        "intermediate",
+        rng=random.Random(1),
+    ) not in {"b1a3", "g1h3"}
+
+
+def test_intermediate_opening_move_has_some_variety():
+    opening_moves = {
+        choose_computer_move(
+            STARTING_FEN,
+            "intermediate",
+            rng=random.Random(seed),
+        )
+        for seed in range(30)
+    }
+
+    assert len(opening_moves) >= 2
+    assert opening_moves <= {"c2c3", "c2c4", "d2d3", "d2d4", "e2e3", "e2e4", "g1f3", "b1c3"}
+
+
 def test_intermediate_prefers_immediate_checkmate():
     before_fools_mate_fen = (
         "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR "
@@ -113,8 +143,8 @@ def test_intermediate_prefers_queen_promotion():
     ) == "a7a8q"
 
 
-def test_intermediate_prefers_higher_material_gain():
-    fen = "4k3/8/8/8/8/2q5/1P1Q4/4K3 b - - 0 1"
+def test_intermediate_prefers_safe_higher_material_gain():
+    fen = "4k3/8/8/8/8/2q5/1P1Q4/K7 b - - 0 1"
 
     assert choose_computer_move(
         fen,
