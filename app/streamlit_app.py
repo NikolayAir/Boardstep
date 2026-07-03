@@ -198,17 +198,24 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
 
 
 def apply_legal_move_to_session(move_text: str) -> str:
-    """Apply a legal move and append it to the visible move history."""
-    new_fen, san = apply_uci_move(st.session_state.fen, move_text)
-    ply_number = len(st.session_state.move_history) + 1
-    normalized_move = move_text.strip().lower()
+    """Apply a legal move to the current session and return SAN notation."""
+    recorded_move_text = move_text.strip()
+
+    try:
+        new_fen, san = apply_uci_move(st.session_state.fen, recorded_move_text)
+    except ValueError:
+        if len(recorded_move_text) != 4:
+            raise
+
+        promoted_move_text = f"{recorded_move_text}q"
+        new_fen, san = apply_uci_move(st.session_state.fen, promoted_move_text)
+        recorded_move_text = promoted_move_text
 
     st.session_state.fen = new_fen
+    move_number = len(st.session_state.move_history) + 1
     st.session_state.move_history.append(
-        f"{ply_number}. {normalized_move} ({san})"
+        f"{move_number}. {recorded_move_text} ({san})"
     )
-    st.session_state.selected_square = None
-    st.session_state.click_move_error = None
 
     return san
 
