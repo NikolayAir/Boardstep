@@ -2,15 +2,15 @@
 
 Boardstep is a browser-based chess practice app built with Python and Streamlit.
 
-It currently lets you practice legal chess moves on an interactive board, load positions from FEN, and follow the current position in a simple web interface.
+It currently lets you practice legal chess moves on an interactive board, play local practice games against a simple rule-based computer opponent, load positions from FEN, and follow the current position in a simple web interface.
 
-Chess rules and move validation remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
+Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
 It also includes a manual-refresh shared game prototype. You can create a shared game ID, load it in another browser session, refresh manually to see the latest saved position, and leave shared mode without deleting the saved game.
 
 Live demo: https://boardstep.streamlit.app
 
-![Boardstep v0.11.0 main layout](docs/assets/boardstep-v0.11.0-main-layout.png)
+![Boardstep v0.12.0 computer practice mode](docs/assets/boardstep-v0.12.0-computer-practice.png)
 
 The deployed demo remains a prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
 
@@ -18,12 +18,17 @@ The deployed demo remains a prototype. Shared game features require configured s
 
 ```mermaid
 flowchart LR
-    UI["Streamlit app"] --> Board["Clickable board component"]
+    UI["Streamlit app"] --> Mode["Practice mode"]
+    Mode --> Board["Clickable board component"]
     Board --> Click["Square click"]
     Click --> State["Streamlit session state"]
     State --> Rules["python-chess move validation"]
     Rules --> Position["Updated FEN and move history"]
     Position --> UI
+
+    Mode -. "computer practice" .-> Computer["Rule-based Python move selector"]
+    Computer -. "legal UCI move" .-> Rules
+
     Position -. "save move in shared mode" .-> Storage["Supabase/PostgreSQL via REST"]
     UI -. "manual refresh" .-> Storage
     Storage -. "loaded shared state" .-> State
@@ -41,6 +46,19 @@ Local practice:
 * view move history
 * copy the current position as FEN
 * load a position from FEN
+
+Computer practice:
+
+* play a local game against a simple rule-based Python computer opponent
+* choose whether to play White or Black
+* use several practice levels:
+  * Beginner: random legal moves
+  * Easy: prefers immediate mates, captures, checks, and promotions
+  * Basic: uses simple material scoring
+  * Intermediate: uses opening priorities, looks one reply ahead, and applies lightweight positional scoring
+* see the selected practice level and last computer move in the game panel
+* automatically reset the local computer-practice game when changing side or level
+* use simple four-character promotion input that defaults to queen promotion when legal
 
 Manual-refresh shared game prototype:
 
@@ -80,10 +98,12 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * Shared games use manual refresh, require configured storage, and are not real-time synchronized.
 * Board orientation is local to the current browser/session and is not saved to shared-game state.
 * Shared games do not assign White/Black players or restrict moves by player side yet.
-* There are no accounts, private invites, clocks, ratings, chat, chess engine, or AI coach.
+* There are no accounts, private invites, clocks, ratings, chat, external chess engine, Elo calibration, or AI coach.
+* The computer opponent is a simple rule-based practice helper, not an engine-strength opponent.
 
 ## Version history
 
+* `v0.12.0` — computer-practice mode. Adds local play against a simple rule-based Python computer opponent, practice levels from Beginner to Intermediate, side selection, visible level descriptions, queen-promotion handling for simple promotion input, and reset behavior when side or level changes.
 * `v0.11.0` — frontend assets and layout polish. Separates the clickable board into a lightweight JavaScript component with HTML and CSS assets, adds a modest Streamlit theme, and groups the board and game panel more clearly.
 * `v0.10.0` — board orientation toggle. Adds a local White-at-bottom / Black-at-bottom board orientation setting while keeping click-to-move, coordinate labels, legal-target highlighting, typed move input, and coordinate fallback controls aligned.
 * `v0.9.0` — shared game UX polish. Makes shared games easier to create, load, refresh, leave, and understand while keeping manual refresh as the synchronization model.
