@@ -213,6 +213,7 @@ def format_computer_level(computer_level: str) -> str:
         "beginner": "Beginner",
         "easy": "Easy",
         "basic": "Basic",
+        "intermediate": "Intermediate",
     }
 
     return labels.get(computer_level, "Beginner")

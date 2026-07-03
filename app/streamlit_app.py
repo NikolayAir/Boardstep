@@ -48,11 +48,12 @@ PLAY_MODE_LABELS = {
     "shared": "Shared game",
 }
 
-COMPUTER_LEVEL_OPTIONS = ("beginner", "easy", "basic")
+COMPUTER_LEVEL_OPTIONS = ("beginner", "easy", "basic", "intermediate")
 COMPUTER_LEVEL_LABELS = {
     "beginner": "Beginner",
     "easy": "Easy",
     "basic": "Basic",
+    "intermediate": "Intermediate",
 }
 
 PLAYER_SIDE_OPTIONS = ("white", "black")
