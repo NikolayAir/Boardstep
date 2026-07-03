@@ -7,11 +7,14 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from boardstep.computer_player import choose_computer_move
+
 from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_files,
     board_rows,
+    side_to_move,
     validate_fen_position,
 )
 
@@ -36,6 +39,21 @@ from app.ui_components import (
     render_board_area,
     render_game_panel,
 )
+
+
+PLAY_MODE_OPTIONS = ("local", "computer", "shared")
+PLAY_MODE_LABELS = {
+    "local": "Local practice",
+    "computer": "Computer practice",
+    "shared": "Shared game",
+}
+
+COMPUTER_LEVEL_OPTIONS = ("beginner", "easy", "basic")
+COMPUTER_LEVEL_LABELS = {
+    "beginner": "Beginner",
+    "easy": "Easy",
+    "basic": "Basic",
+}
 
 
 def initialize_game_state() -> None:
@@ -64,6 +82,15 @@ def initialize_game_state() -> None:
     if "shared_game_status" not in st.session_state:
         st.session_state.shared_game_status = None
 
+    if "game_mode" not in st.session_state:
+        st.session_state.game_mode = "local"
+
+    if "computer_level" not in st.session_state:
+        st.session_state.computer_level = "beginner"
+
+    if "last_computer_move" not in st.session_state:
+        st.session_state.last_computer_move = None
+
 
 def clear_shared_game_session() -> None:
     """Clear shared-game session metadata."""
@@ -72,12 +99,22 @@ def clear_shared_game_session() -> None:
     st.session_state.shared_game_status = None
 
 
+def clear_computer_practice_session() -> None:
+    """Clear computer-practice transient metadata."""
+    st.session_state.last_computer_move = None
+
+
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
     st.session_state.move_history = []
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
+    clear_computer_practice_session()
+
+    if st.session_state.game_mode == "shared":
+        st.session_state.game_mode = "local"
+
     clear_shared_game_session()
 
 
@@ -124,17 +161,56 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
         )
 
 
-def apply_move_text(move_text: str) -> None:
-    """Apply a move and update Streamlit session state."""
+def apply_legal_move_to_session(move_text: str) -> str:
+    """Apply a legal move and append it to the visible move history."""
     new_fen, san = apply_uci_move(st.session_state.fen, move_text)
     ply_number = len(st.session_state.move_history) + 1
+    normalized_move = move_text.strip().lower()
 
     st.session_state.fen = new_fen
     st.session_state.move_history.append(
-        f"{ply_number}. {move_text.strip().lower()} ({san})"
+        f"{ply_number}. {normalized_move} ({san})"
     )
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
+
+    return san
+
+
+def apply_computer_reply_if_needed() -> None:
+    """Apply a local computer reply after a user move in computer practice."""
+    if st.session_state.game_mode != "computer":
+        return
+
+    if st.session_state.shared_game_id:
+        return
+
+    if side_to_move(st.session_state.fen) != "Black":
+        return
+
+    computer_move = choose_computer_move(
+        st.session_state.fen,
+        st.session_state.computer_level,
+    )
+
+    if computer_move is None:
+        return
+
+    computer_san = apply_legal_move_to_session(computer_move)
+    st.session_state.last_computer_move = f"{computer_move} ({computer_san})"
+
+
+def apply_move_text(move_text: str) -> None:
+    """Apply a user move and update Streamlit session state."""
+    if (
+        st.session_state.game_mode == "computer"
+        and not st.session_state.shared_game_id
+        and side_to_move(st.session_state.fen) == "Black"
+    ):
+        raise ValueError("It is the computer's turn in computer practice.")
+
+    clear_computer_practice_session()
+    apply_legal_move_to_session(move_text)
 
     if st.session_state.shared_game_id:
         config, _ = read_shared_game_storage_config()
@@ -147,6 +223,10 @@ def apply_move_text(move_text: str) -> None:
         else:
             save_current_shared_game_position(config)
 
+        return
+
+    apply_computer_reply_if_needed()
+
 
 def load_fen_position(fen_text: str) -> None:
     """Load a validated FEN position into the current session."""
@@ -154,6 +234,7 @@ def load_fen_position(fen_text: str) -> None:
     st.session_state.move_history = []
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
+    clear_computer_practice_session()
     clear_shared_game_session()
 
 
@@ -209,6 +290,8 @@ def apply_shared_game_state_to_session(
     st.session_state.shared_game_id = state.game_id
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
+    st.session_state.game_mode = "shared"
+    clear_computer_practice_session()
 
 
 def create_shared_game_from_current_session(
@@ -307,6 +390,7 @@ def render_shared_game_controls() -> None:
                     use_container_width=True,
                 ):
                     clear_shared_game_session()
+                    st.session_state.game_mode = "local"
                     st.session_state.shared_game_status = (
                         "Returned to local practice. The saved shared game was not deleted."
                     )
@@ -416,8 +500,50 @@ def render_app_header() -> None:
     """Render the compact application heading."""
     st.title("Boardstep")
     st.caption(
-        "Click-to-move chess practice with optional manual-refresh shared games."
+        "Click-to-move chess practice with local, computer, and manual-refresh shared modes."
     )
+
+
+def render_game_setup() -> None:
+    """Render play-mode controls for local, computer, and shared practice."""
+    with st.container(border=True):
+        st.subheader("Game setup")
+
+        selected_mode = st.radio(
+            "Play mode",
+            options=PLAY_MODE_OPTIONS,
+            format_func=lambda value: PLAY_MODE_LABELS[value],
+            horizontal=True,
+            key="game_mode",
+        )
+
+        if selected_mode != "shared" and st.session_state.shared_game_id:
+            clear_shared_game_session()
+
+        if selected_mode == "local":
+            st.caption("Practice locally in this browser session.")
+            return
+
+        if selected_mode == "computer":
+            st.caption(
+                "You play White. The computer replies as Black after each legal move."
+            )
+            st.radio(
+                "Practice level",
+                options=COMPUTER_LEVEL_OPTIONS,
+                format_func=lambda value: COMPUTER_LEVEL_LABELS[value],
+                horizontal=True,
+                key="computer_level",
+            )
+
+            if side_to_move(st.session_state.fen) == "Black":
+                st.info(
+                    "Computer practice expects White to move. Reset or load a White-to-move position if needed."
+                )
+
+            return
+
+        render_shared_game_controls()
 
 
 def main() -> None:
@@ -425,7 +551,7 @@ def main() -> None:
     initialize_game_state()
 
     render_app_header()
-    render_shared_game_controls()
+    render_game_setup()
 
     board_col, game_col = st.columns([1.65, 1], gap="large")
 
@@ -463,6 +589,9 @@ def main() -> None:
                 apply_move=apply_move_text,
                 reset_game=reset_game,
                 render_fen_load_controls=render_fen_load_controls,
+                game_mode=st.session_state.game_mode,
+                computer_level=st.session_state.computer_level,
+                last_computer_move=st.session_state.last_computer_move,
             )
 
 

@@ -196,6 +196,28 @@ def render_typed_move_form(
                 )
 
 
+def format_game_mode(game_mode: str) -> str:
+    """Return a readable label for the active play mode."""
+    labels = {
+        "local": "Local practice",
+        "computer": "Computer practice",
+        "shared": "Shared game",
+    }
+
+    return labels.get(game_mode, "Local practice")
+
+
+def format_computer_level(computer_level: str) -> str:
+    """Return a readable label for the selected computer practice level."""
+    labels = {
+        "beginner": "Beginner",
+        "easy": "Easy",
+        "basic": "Basic",
+    }
+
+    return labels.get(computer_level, "Beginner")
+
+
 def render_position_tools(
     fen: str,
     render_fen_load_controls: RenderControls,
@@ -214,7 +236,7 @@ def render_position_tools(
 def render_game_actions(reset_game: ResetGame) -> None:
     """Render secondary game management actions."""
     with st.expander("Game actions"):
-        st.caption("Reset starts a new local game and clears the current move history.")
+        st.caption("Reset starts a new game and clears the current move history.")
 
         if st.button("Reset game"):
             reset_game()
@@ -228,12 +250,22 @@ def render_game_panel(
     apply_move: ApplyMove,
     reset_game: ResetGame,
     render_fen_load_controls: RenderControls,
+    game_mode: str,
+    computer_level: str,
+    last_computer_move: str | None,
 ) -> None:
     """Render game status, move history, typed input, and position tools."""
     st.subheader("Current game")
 
     st.markdown(f"**Status:** {game_status(fen)}")
     st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
+    st.markdown(f"**Mode:** {format_game_mode(game_mode)}")
+
+    if game_mode == "computer":
+        st.markdown(f"**Practice level:** {format_computer_level(computer_level)}")
+
+        if last_computer_move:
+            st.markdown(f"**Last computer move:** {last_computer_move}")
 
     render_move_history(move_history)
     render_typed_move_form(apply_move)
