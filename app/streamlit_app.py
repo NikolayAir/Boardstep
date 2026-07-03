@@ -567,6 +567,7 @@ def render_game_setup() -> None:
                 format_func=lambda value: PLAYER_SIDE_LABELS[value],
                 horizontal=True,
                 key="player_side",
+                on_change=reset_game,
             )
 
             if st.session_state.board_orientation != st.session_state.player_side:
@@ -578,7 +579,18 @@ def render_game_setup() -> None:
                 format_func=lambda value: COMPUTER_LEVEL_LABELS[value],
                 horizontal=True,
                 key="computer_level",
+                on_change=reset_game,
             )
+
+            with st.expander("What do the levels mean?"):
+                st.markdown(
+                    "- **Beginner:** random legal moves.\n"
+                    "- **Easy:** prefers immediate mates, captures, checks, and promotions.\n"
+                    "- **Basic:** chooses moves using simple material scoring.\n"
+                    "- **Intermediate:** looks one reply ahead and uses lightweight positional scoring."
+                )
+
+            st.caption("Changing side or level starts a new game.")
 
             if should_start_computer_as_white():
                 apply_computer_reply_if_needed()
