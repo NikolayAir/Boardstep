@@ -55,6 +55,12 @@ COMPUTER_LEVEL_LABELS = {
     "basic": "Basic",
 }
 
+PLAYER_SIDE_OPTIONS = ("white", "black")
+PLAYER_SIDE_LABELS = {
+    "white": "White",
+    "black": "Black",
+}
+
 
 def initialize_game_state() -> None:
     """Create the Streamlit session state used by the current chess game."""
@@ -88,6 +94,9 @@ def initialize_game_state() -> None:
     if "computer_level" not in st.session_state:
         st.session_state.computer_level = "beginner"
 
+    if "player_side" not in st.session_state:
+        st.session_state.player_side = "white"
+
     if "last_computer_move" not in st.session_state:
         st.session_state.last_computer_move = None
 
@@ -104,6 +113,31 @@ def clear_computer_practice_session() -> None:
     st.session_state.last_computer_move = None
 
 
+def current_side_to_move_key() -> str:
+    """Return the current side to move as a session-state key."""
+    return side_to_move(st.session_state.fen).lower()
+
+
+def is_computer_practice_turn() -> bool:
+    """Return whether the local computer should move now."""
+    return (
+        st.session_state.game_mode == "computer"
+        and not st.session_state.shared_game_id
+        and current_side_to_move_key() != st.session_state.player_side
+    )
+
+
+def should_start_computer_as_white() -> bool:
+    """Return whether the computer should make the opening move."""
+    return (
+        st.session_state.game_mode == "computer"
+        and st.session_state.player_side == "black"
+        and st.session_state.fen == STARTING_FEN
+        and not st.session_state.move_history
+        and current_side_to_move_key() == "white"
+    )
+
+
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
@@ -116,6 +150,7 @@ def reset_game() -> None:
         st.session_state.game_mode = "local"
 
     clear_shared_game_session()
+    apply_computer_reply_if_needed()
 
 
 def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
@@ -178,14 +213,8 @@ def apply_legal_move_to_session(move_text: str) -> str:
 
 
 def apply_computer_reply_if_needed() -> None:
-    """Apply a local computer reply after a user move in computer practice."""
-    if st.session_state.game_mode != "computer":
-        return
-
-    if st.session_state.shared_game_id:
-        return
-
-    if side_to_move(st.session_state.fen) != "Black":
+    """Apply a local computer reply when it is the computer's turn."""
+    if not is_computer_practice_turn():
         return
 
     computer_move = choose_computer_move(
@@ -202,11 +231,7 @@ def apply_computer_reply_if_needed() -> None:
 
 def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
-    if (
-        st.session_state.game_mode == "computer"
-        and not st.session_state.shared_game_id
-        and side_to_move(st.session_state.fen) == "Black"
-    ):
+    if is_computer_practice_turn():
         raise ValueError("It is the computer's turn in computer practice.")
 
     clear_computer_practice_session()
@@ -526,8 +551,19 @@ def render_game_setup() -> None:
 
         if selected_mode == "computer":
             st.caption(
-                "You play White. The computer replies as Black after each legal move."
+                "Choose a side. The computer replies when it is its turn."
             )
+            st.radio(
+                "You play",
+                options=PLAYER_SIDE_OPTIONS,
+                format_func=lambda value: PLAYER_SIDE_LABELS[value],
+                horizontal=True,
+                key="player_side",
+            )
+
+            if st.session_state.board_orientation != st.session_state.player_side:
+                st.session_state.board_orientation = st.session_state.player_side
+
             st.radio(
                 "Practice level",
                 options=COMPUTER_LEVEL_OPTIONS,
@@ -536,9 +572,13 @@ def render_game_setup() -> None:
                 key="computer_level",
             )
 
-            if side_to_move(st.session_state.fen) == "Black":
+            if should_start_computer_as_white():
+                apply_computer_reply_if_needed()
+                st.rerun()
+
+            if is_computer_practice_turn():
                 st.info(
-                    "Computer practice expects White to move. Reset or load a White-to-move position if needed."
+                    "It is the computer's turn. Reset the game if you changed sides mid-game."
                 )
 
             return
@@ -591,6 +631,7 @@ def main() -> None:
                 render_fen_load_controls=render_fen_load_controls,
                 game_mode=st.session_state.game_mode,
                 computer_level=st.session_state.computer_level,
+                player_side=st.session_state.player_side,
                 last_computer_move=st.session_state.last_computer_move,
             )
 

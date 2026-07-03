@@ -218,6 +218,16 @@ def format_computer_level(computer_level: str) -> str:
     return labels.get(computer_level, "Beginner")
 
 
+def format_player_side(player_side: str) -> str:
+    """Return a readable label for the selected player side."""
+    labels = {
+        "white": "White",
+        "black": "Black",
+    }
+
+    return labels.get(player_side, "White")
+
+
 def render_position_tools(
     fen: str,
     render_fen_load_controls: RenderControls,
@@ -252,6 +262,7 @@ def render_game_panel(
     render_fen_load_controls: RenderControls,
     game_mode: str,
     computer_level: str,
+    player_side: str,
     last_computer_move: str | None,
 ) -> None:
     """Render game status, move history, typed input, and position tools."""
@@ -262,6 +273,7 @@ def render_game_panel(
     st.markdown(f"**Mode:** {format_game_mode(game_mode)}")
 
     if game_mode == "computer":
+        st.markdown(f"**You play:** {format_player_side(player_side)}")
         st.markdown(f"**Practice level:** {format_computer_level(computer_level)}")
 
         if last_computer_move:
