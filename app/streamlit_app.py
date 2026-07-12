@@ -124,6 +124,15 @@ def mark_shared_game_synced() -> None:
     st.session_state.shared_game_last_synced_at = time.strftime("%H:%M:%S")
 
 
+def leave_shared_game_session() -> None:
+    """Return to local practice without deleting the saved shared game."""
+    clear_shared_game_session()
+    st.session_state.game_mode = "local"
+    st.session_state.shared_game_status = (
+        "Returned to local practice. The saved shared game was not deleted."
+    )
+
+
 def shared_game_auto_refresh_is_paused() -> bool:
     """Return whether auto-refresh should pause to avoid interrupting a local move."""
     return st.session_state.selected_square is not None
@@ -345,7 +354,6 @@ def apply_shared_game_state_to_session(
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
     mark_shared_game_synced()
-    st.session_state.game_mode = "shared"
     clear_computer_practice_session()
 
 
@@ -439,17 +447,12 @@ def render_shared_game_controls() -> None:
             leave_col, _ = st.columns([1.3, 5.7])
 
             with leave_col:
-                if st.button(
+                st.button(
                     "Leave shared game",
                     help="Return to local practice without deleting the saved shared game.",
                     use_container_width=True,
-                ):
-                    clear_shared_game_session()
-                    st.session_state.game_mode = "local"
-                    st.session_state.shared_game_status = (
-                        "Returned to local practice. The saved shared game was not deleted."
-                    )
-                    st.rerun()
+                    on_click=leave_shared_game_session,
+                )
 
         if st.session_state.shared_game_status:
             st.info(st.session_state.shared_game_status)
