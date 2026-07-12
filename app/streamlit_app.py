@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import time
+
 import streamlit as st
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -89,6 +91,12 @@ def initialize_game_state() -> None:
     if "shared_game_status" not in st.session_state:
         st.session_state.shared_game_status = None
 
+    if "shared_game_auto_refresh_enabled" not in st.session_state:
+        st.session_state.shared_game_auto_refresh_enabled = False
+
+    if "shared_game_last_synced_at" not in st.session_state:
+        st.session_state.shared_game_last_synced_at = None
+
     if "game_mode" not in st.session_state:
         st.session_state.game_mode = "local"
 
@@ -107,6 +115,18 @@ def clear_shared_game_session() -> None:
     st.session_state.shared_game_id = ""
     st.session_state.shared_game_last_move_number = None
     st.session_state.shared_game_status = None
+    st.session_state.shared_game_auto_refresh_enabled = False
+    st.session_state.shared_game_last_synced_at = None
+
+
+def mark_shared_game_synced() -> None:
+    """Record the local time of the latest successful shared-game sync."""
+    st.session_state.shared_game_last_synced_at = time.strftime("%H:%M:%S")
+
+
+def shared_game_auto_refresh_is_paused() -> bool:
+    """Return whether auto-refresh should pause to avoid interrupting a local move."""
+    return st.session_state.selected_square is not None
 
 
 def clear_computer_practice_session() -> None:
@@ -192,6 +212,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
         )
     else:
         st.session_state.shared_game_last_move_number = saved_state.last_move_number
+        mark_shared_game_synced()
         st.session_state.shared_game_status = (
             "Move saved. The other player needs to press Refresh shared game to see it."
         )
@@ -323,6 +344,7 @@ def apply_shared_game_state_to_session(
     st.session_state.shared_game_id = state.game_id
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
+    mark_shared_game_synced()
     st.session_state.game_mode = "shared"
     clear_computer_practice_session()
 
@@ -507,6 +529,42 @@ def render_shared_game_controls() -> None:
                         st.rerun()
 
 
+@st.fragment(run_every="3s")
+def render_shared_game_auto_refresh(config: SupabaseRestConfig | None) -> None:
+    """Render and run optional polling-based shared-game auto-refresh."""
+    if not st.session_state.shared_game_id:
+        return
+
+    auto_refresh_enabled = st.toggle(
+        "Auto-refresh shared game",
+        key="shared_game_auto_refresh_enabled",
+        disabled=config is None,
+        help="Poll shared storage every few seconds while this browser is in shared game mode.",
+    )
+
+    last_synced_at = st.session_state.shared_game_last_synced_at or "not yet"
+    status_text = "on" if auto_refresh_enabled else "off"
+    st.caption(f"Auto-refresh: {status_text}. Last synced: {last_synced_at}.")
+
+    if config is None:
+        st.caption("Shared-game storage is not configured for this session.")
+        return
+
+    if not auto_refresh_enabled:
+        return
+
+    if shared_game_auto_refresh_is_paused():
+        st.caption("Auto-refresh paused while you are choosing a move.")
+        return
+
+    refreshed_has_new_move = refresh_current_shared_game(config)
+
+    if refreshed_has_new_move:
+        st.rerun()
+
+    st.caption("Waiting for opponent move...")
+
+
 def render_shared_game_refresh_shortcut() -> None:
     """Render a board-side refresh shortcut for active shared games."""
     if not st.session_state.shared_game_id:
@@ -527,6 +585,7 @@ def render_shared_game_refresh_shortcut() -> None:
             st.rerun()
 
     st.caption("Check for the other player’s latest move.")
+    render_shared_game_auto_refresh(config)
 
 
 def render_app_header() -> None:
