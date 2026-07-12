@@ -223,7 +223,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
         st.session_state.shared_game_last_move_number = saved_state.last_move_number
         mark_shared_game_synced()
         st.session_state.shared_game_status = (
-            "Move saved. The other player needs to press Refresh shared game to see it."
+            "Move saved. The other player can refresh manually or use auto-refresh to see it."
         )
 
 
@@ -420,13 +420,14 @@ def render_shared_game_controls() -> None:
         if active_game_id:
             st.caption(
                 "Send the game ID to the other player. "
-                "After either player moves, the other browser needs to press "
-                "Refresh shared game to see the latest board."
+                "After either player moves, the other browser can refresh manually "
+                "or enable auto-refresh to check for the latest board."
             )
         else:
             st.caption(
                 "Create a shared game ID or load one from another player. "
-                "Each browser updates only when Refresh shared game is pressed."
+                "Each browser can refresh manually or enable auto-refresh "
+                "after loading a shared game."
             )
 
         config, _ = read_shared_game_storage_config()
@@ -526,7 +527,7 @@ def render_shared_game_controls() -> None:
                         apply_shared_game_state_to_session(
                             loaded_state,
                             status_message=(
-                                "Shared game loaded. Press Refresh shared game to check for moves from the other player."
+                                "Shared game loaded. Use Refresh shared game or enable auto-refresh to check for moves from the other player."
                             ),
                         )
                         st.rerun()
@@ -595,7 +596,7 @@ def render_app_header() -> None:
     """Render the compact application heading."""
     st.title("Boardstep")
     st.caption(
-        "Click-to-move chess practice with local, computer, and manual-refresh shared modes."
+        "Click-to-move chess practice with local, computer, and shared game modes."
     )
 
 
