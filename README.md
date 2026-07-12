@@ -6,13 +6,13 @@ It currently lets you practice legal chess moves on an interactive board, play l
 
 Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
-It also includes a manual-refresh shared game prototype. You can create a shared game ID, load it in another browser session, refresh manually to see the latest saved position, and leave shared mode without deleting the saved game.
+It also includes a shared game prototype. You can create a shared game ID, load it in another browser session, refresh manually or enable optional auto-refresh to check for the latest saved position, and leave shared mode without deleting the saved game.
 
 Live demo: https://boardstep.streamlit.app
 
 ![Boardstep v0.12.0 computer practice mode](docs/assets/boardstep-v0.12.0-computer-practice.png)
 
-The deployed demo remains a prototype. Shared game features require configured shared-game storage and are not real-time multiplayer.
+The deployed demo remains a prototype. Shared game features require configured shared-game storage and use manual refresh or polling-based auto-refresh rather than true real-time multiplayer.
 
 ## How it works
 
@@ -30,7 +30,7 @@ flowchart LR
     Computer -. "legal UCI move" .-> Rules
 
     Position -. "save move in shared mode" .-> Storage["Supabase/PostgreSQL via REST"]
-    UI -. "manual refresh" .-> Storage
+    UI -. "manual or auto refresh" .-> Storage
     Storage -. "loaded shared state" .-> State
 ```
 
@@ -60,7 +60,7 @@ Computer practice:
 * automatically reset the local computer-practice game when changing side or level
 * use simple four-character promotion input that defaults to queen promotion when legal
 
-Manual-refresh shared game prototype:
+Shared game prototype:
 
 * create a shared game ID when shared storage is configured
 * load a shared game by ID in another browser session
@@ -68,6 +68,9 @@ Manual-refresh shared game prototype:
 * find and reuse the active shared game ID
 * save moves to shared storage after creating or loading a shared game
 * manually refresh a shared game to load the latest saved position
+* enable optional auto-refresh to check for the latest saved position
+* see the latest local sync time
+* pause auto-refresh while choosing a move
 * leave shared game mode without deleting the saved shared game
 
 ## Shareable positions
@@ -78,13 +81,13 @@ You can copy the FEN from one session and paste it into another session to resto
 
 ## Shared game prototype
 
-Boardstep includes a manual-refresh shared game flow backed by external storage.
+Boardstep includes a shared game flow backed by external storage, with manual refresh and optional auto-refresh.
 
-One browser session creates a shared game ID, and another session loads the same ID. After a move is played, it is saved to storage. The other session then uses `Refresh shared game` to load the latest saved position.
+One browser session creates a shared game ID, and another session loads the same ID. After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position.
 
 Leaving shared game mode returns the current browser session to local practice. It does not delete the saved shared game.
 
-This is not real-time multiplayer. There are no accounts, private invites, clocks, ratings, chat, or chess engine. Anyone with the shared game ID can load that game.
+This is not real-time multiplayer. Auto-refresh uses polling rather than live WebSocket synchronization. There are no accounts, private invites, clocks, ratings, chat, or chess-engine analysis. Anyone with the shared game ID can load that game.
 
 See `docs/shared-game-flow.md` for the design note and `docs/shared-game-storage-setup.md` for storage setup notes.
 
@@ -95,7 +98,7 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * Board interaction uses click-to-move, not drag-and-drop.
 * The clickable board may take a moment to appear on first load.
 * Local practice is session-based unless a shared game is created or loaded.
-* Shared games use manual refresh, require configured storage, and are not real-time synchronized.
+* Shared games use manual refresh with optional polling-based auto-refresh, require configured storage, and are not real-time synchronized.
 * Board orientation is local to the current browser/session and is not saved to shared-game state.
 * Shared games do not assign White/Black players or restrict moves by player side yet.
 * There are no accounts, private invites, clocks, ratings, chat, external chess engine, Elo calibration, or AI coach.
