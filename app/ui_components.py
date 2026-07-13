@@ -47,6 +47,8 @@ def handle_square_click(square_name: str, apply_move: ApplyMove) -> None:
     try:
         move_text = build_uci_move(selected_square, square_name)
         apply_move(move_text)
+        st.session_state.selected_square = None
+        st.session_state.click_move_error = None
     except ValueError as exc:
         st.session_state.click_move_error = f"Move not accepted: {exc}"
         st.session_state.selected_square = None

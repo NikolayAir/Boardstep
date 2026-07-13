@@ -21,9 +21,14 @@ from boardstep.game import (
 )
 
 from boardstep.shared_game import (
+    DEFAULT_SHARED_GAME_ROLE,
+    SHARED_GAME_ROLES,
     SharedGameState,
     create_shared_game_state,
     generate_shared_game_id,
+    shared_game_move_restriction_message,
+    shared_game_role_can_move,
+    shared_game_turn_guidance,
 )
 
 from boardstep.supabase_rest_storage import (
@@ -64,6 +69,12 @@ PLAYER_SIDE_LABELS = {
     "black": "Black",
 }
 
+SHARED_GAME_ROLE_LABELS = {
+    "white": "White",
+    "black": "Black",
+    "observer": "Observer",
+}
+
 
 def initialize_game_state() -> None:
     """Create the Streamlit session state used by the current chess game."""
@@ -96,6 +107,9 @@ def initialize_game_state() -> None:
 
     if "shared_game_last_synced_at" not in st.session_state:
         st.session_state.shared_game_last_synced_at = None
+
+    if "shared_game_role" not in st.session_state:
+        st.session_state.shared_game_role = DEFAULT_SHARED_GAME_ROLE
 
     if "game_mode" not in st.session_state:
         st.session_state.game_mode = "local"
@@ -134,8 +148,23 @@ def leave_shared_game_session() -> None:
 
 
 def shared_game_auto_refresh_is_paused() -> bool:
-    """Return whether auto-refresh should pause to avoid interrupting a local move."""
-    return st.session_state.selected_square is not None
+    """Return whether the current shared-game role is choosing a move."""
+    if st.session_state.selected_square is None:
+        return False
+
+    return shared_game_role_can_move(
+        st.session_state.shared_game_role,
+        st.session_state.fen,
+    )
+
+
+def apply_shared_game_role_change() -> None:
+    """Apply local UI updates after changing the shared-game role."""
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+
+    if st.session_state.shared_game_role in ("white", "black"):
+        st.session_state.board_orientation = st.session_state.shared_game_role
 
 
 def clear_computer_practice_session() -> None:
@@ -271,6 +300,14 @@ def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
     if is_computer_practice_turn():
         raise ValueError("It is the computer's turn in computer practice.")
+
+    if st.session_state.shared_game_id:
+        restriction_message = shared_game_move_restriction_message(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        )
+        if restriction_message:
+            raise ValueError(restriction_message)
 
     clear_computer_practice_session()
     apply_legal_move_to_session(move_text)
@@ -448,6 +485,23 @@ def render_shared_game_controls() -> None:
             st.markdown("**Active shared game ID**")
             st.code(active_game_id, language="text")
 
+            st.radio(
+                "Shared game role",
+                options=SHARED_GAME_ROLES,
+                format_func=lambda value: SHARED_GAME_ROLE_LABELS[value],
+                horizontal=True,
+                key="shared_game_role",
+                on_change=apply_shared_game_role_change,
+                help=(
+                    "This selection is local to this browser session. "
+                    "It guides turn-taking but does not claim a protected seat."
+                ),
+            )
+
+            st.caption(
+                "Role selection is local guidance, not authenticated player ownership."
+            )
+
             leave_col, _ = st.columns([1.3, 5.7])
 
             with leave_col:
@@ -582,6 +636,16 @@ def render_shared_game_refresh_shortcut() -> None:
     st.write("")
     st.markdown("**Shared game**")
 
+    turn_guidance = shared_game_turn_guidance(
+        st.session_state.shared_game_role,
+        st.session_state.fen,
+    )
+
+    if turn_guidance == "Your move.":
+        st.success(turn_guidance)
+    else:
+        st.info(turn_guidance)
+
     if st.button(
         "Refresh shared game",
         disabled=config is None,
@@ -686,6 +750,11 @@ def main() -> None:
             _, orientation_col, _ = st.columns([0.85, 1.9, 0.25], gap="small")
 
             with orientation_col:
+                orientation_locked_by_shared_role = (
+                    bool(st.session_state.shared_game_id)
+                    and st.session_state.shared_game_role in ("white", "black")
+                )
+
                 board_orientation = st.radio(
                     "Board orientation",
                     options=("white", "black"),
@@ -695,6 +764,7 @@ def main() -> None:
                     horizontal=True,
                     key="board_orientation",
                     label_visibility="collapsed",
+                    disabled=orientation_locked_by_shared_role,
                     help=(
                         "This changes only your local board view. "
                         "It is not saved to shared games."
