@@ -21,9 +21,17 @@ from boardstep.game import (
 )
 
 from boardstep.shared_game import (
+    CREATOR_SIDE_OPTIONS,
+    DEFAULT_SHARED_GAME_ROLE,
     SharedGameState,
     create_shared_game_state,
     generate_shared_game_id,
+    normalize_shared_game_side,
+    opposite_shared_game_side,
+    resolve_creator_side,
+    shared_game_move_restriction_message,
+    shared_game_role_can_move,
+    shared_game_turn_guidance,
 )
 
 from boardstep.supabase_rest_storage import (
@@ -64,6 +72,18 @@ PLAYER_SIDE_LABELS = {
     "black": "Black",
 }
 
+SHARED_GAME_ROLE_LABELS = {
+    "white": "White",
+    "black": "Black",
+    "observer": "Observer",
+}
+
+CREATOR_SIDE_LABELS = {
+    "white": "White",
+    "black": "Black",
+    "random": "Random",
+}
+
 
 def initialize_game_state() -> None:
     """Create the Streamlit session state used by the current chess game."""
@@ -97,6 +117,21 @@ def initialize_game_state() -> None:
     if "shared_game_last_synced_at" not in st.session_state:
         st.session_state.shared_game_last_synced_at = None
 
+    if "shared_game_role" not in st.session_state:
+        st.session_state.shared_game_role = DEFAULT_SHARED_GAME_ROLE
+
+    if "shared_game_creator_side" not in st.session_state:
+        st.session_state.shared_game_creator_side = "white"
+
+    if "shared_game_assigned_side" not in st.session_state:
+        st.session_state.shared_game_assigned_side = "white"
+
+    if "shared_game_creator_side_selection" not in st.session_state:
+        st.session_state.shared_game_creator_side_selection = "white"
+
+    if "shared_game_pending_assigned_side" not in st.session_state:
+        st.session_state.shared_game_pending_assigned_side = None
+
     if "game_mode" not in st.session_state:
         st.session_state.game_mode = "local"
 
@@ -117,6 +152,9 @@ def clear_shared_game_session() -> None:
     st.session_state.shared_game_status = None
     st.session_state.shared_game_auto_refresh_enabled = False
     st.session_state.shared_game_last_synced_at = None
+    st.session_state.shared_game_creator_side = "white"
+    st.session_state.shared_game_assigned_side = "white"
+    st.session_state.shared_game_pending_assigned_side = None
 
 
 def mark_shared_game_synced() -> None:
@@ -134,8 +172,51 @@ def leave_shared_game_session() -> None:
 
 
 def shared_game_auto_refresh_is_paused() -> bool:
-    """Return whether auto-refresh should pause to avoid interrupting a local move."""
-    return st.session_state.selected_square is not None
+    """Return whether the current shared-game role is choosing a move."""
+    if st.session_state.selected_square is None:
+        return False
+
+    return shared_game_role_can_move(
+        st.session_state.shared_game_role,
+        st.session_state.fen,
+    )
+
+
+def apply_shared_game_role_change() -> None:
+    """Apply local UI updates after changing the shared-game role."""
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+
+    if st.session_state.shared_game_role in ("white", "black"):
+        st.session_state.board_orientation = st.session_state.shared_game_role
+
+
+def assign_shared_game_side(side: str) -> None:
+    """Assign a playable shared-game side to this browser session."""
+    normalized_side = normalize_shared_game_side(side)
+    st.session_state.shared_game_assigned_side = normalized_side
+    st.session_state.shared_game_role = normalized_side
+    st.session_state.board_orientation = normalized_side
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+
+
+def queue_shared_game_side_assignment(side: str) -> None:
+    """Queue a side assignment for the next full Streamlit run."""
+    st.session_state.shared_game_pending_assigned_side = (
+        normalize_shared_game_side(side)
+    )
+
+
+def apply_pending_shared_game_side_assignment() -> None:
+    """Apply a queued side assignment before role widgets are instantiated."""
+    pending_side = st.session_state.shared_game_pending_assigned_side
+
+    if pending_side is None:
+        return
+
+    assign_shared_game_side(pending_side)
+    st.session_state.shared_game_pending_assigned_side = None
 
 
 def clear_computer_practice_session() -> None:
@@ -201,6 +282,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
         st.session_state.shared_game_id,
         fen=st.session_state.fen,
         move_history=st.session_state.move_history,
+        creator_side=st.session_state.shared_game_creator_side,
     )
 
     try:
@@ -271,6 +353,14 @@ def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
     if is_computer_practice_turn():
         raise ValueError("It is the computer's turn in computer practice.")
+
+    if st.session_state.shared_game_id:
+        restriction_message = shared_game_move_restriction_message(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        )
+        if restriction_message:
+            raise ValueError(restriction_message)
 
     clear_computer_practice_session()
     apply_legal_move_to_session(move_text)
@@ -351,6 +441,7 @@ def apply_shared_game_state_to_session(
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     st.session_state.shared_game_id = state.game_id
+    st.session_state.shared_game_creator_side = state.creator_side
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
     mark_shared_game_synced()
@@ -359,6 +450,8 @@ def apply_shared_game_state_to_session(
 
 def create_shared_game_from_current_session(
     config: SupabaseRestConfig,
+    *,
+    creator_side: str,
 ) -> SharedGameState:
     """Create a shared game from the current local session state."""
     game_id = generate_shared_game_id()
@@ -366,6 +459,7 @@ def create_shared_game_from_current_session(
         game_id,
         fen=st.session_state.fen,
         move_history=st.session_state.move_history,
+        creator_side=creator_side,
     )
 
     return create_shared_game(config, state)
@@ -448,6 +542,29 @@ def render_shared_game_controls() -> None:
             st.markdown("**Active shared game ID**")
             st.code(active_game_id, language="text")
 
+            assigned_side = st.session_state.shared_game_assigned_side
+            st.markdown(
+                f"**Your color:** {SHARED_GAME_ROLE_LABELS[assigned_side]}"
+            )
+
+            st.radio(
+                "Play as",
+                options=(assigned_side, "observer"),
+                format_func=lambda value: SHARED_GAME_ROLE_LABELS[value],
+                horizontal=True,
+                key="shared_game_role",
+                on_change=apply_shared_game_role_change,
+                help=(
+                    "Play as your assigned color, or choose Observer "
+                    "to watch without making moves."
+                ),
+            )
+
+            st.caption(
+                "Your color is saved for this browser session. "
+                "Choose Observer to watch without making moves."
+            )
+
             leave_col, _ = st.columns([1.3, 5.7])
 
             with leave_col:
@@ -464,6 +581,22 @@ def render_shared_game_controls() -> None:
         if not active_game_id:
             create_disabled = config is None
 
+            st.radio(
+                "Your color",
+                options=CREATOR_SIDE_OPTIONS,
+                format_func=lambda value: CREATOR_SIDE_LABELS[value],
+                horizontal=True,
+                key="shared_game_creator_side_selection",
+                disabled=create_disabled,
+                help=(
+                    "Choose White or Black, or let Boardstep pick randomly. "
+                    "The other player gets the opposite color."
+                ),
+            )
+            st.caption(
+                "The current position decides who moves next. "
+                "Wait for the other player when it is their turn."
+            )
             if st.button(
                 "Create shared game",
                 disabled=create_disabled,
@@ -471,19 +604,30 @@ def render_shared_game_controls() -> None:
             ):
                 if config is not None:
                     try:
-                        state = create_shared_game_from_current_session(config)
+                        creator_side = resolve_creator_side(
+                            st.session_state.shared_game_creator_side_selection
+                        )
+                        state = create_shared_game_from_current_session(
+                            config,
+                            creator_side=creator_side,
+                        )
                     except Exception:
                         st.error(
                             "Shared game could not be created. "
                             "Check the shared-game storage settings, table setup, or whether the storage service is paused."
                         )
                     else:
+                        assigned_label = SHARED_GAME_ROLE_LABELS[
+                            state.creator_side
+                        ]
                         apply_shared_game_state_to_session(
                             state,
                             status_message=(
-                                "Shared game created. Send the ID above to the other player."
+                                f"Shared game created. You are playing "
+                                f"{assigned_label}. Send the game ID to the other player."
                             ),
                         )
+                        queue_shared_game_side_assignment(state.creator_side)
                         st.rerun()
 
         load_container = (
@@ -527,12 +671,19 @@ def render_shared_game_controls() -> None:
                             "Check that the ID was copied correctly."
                         )
                     else:
+                        assigned_side = opposite_shared_game_side(
+                            loaded_state.creator_side
+                        )
+                        assigned_label = SHARED_GAME_ROLE_LABELS[assigned_side]
                         apply_shared_game_state_to_session(
                             loaded_state,
                             status_message=(
-                                "Shared game loaded. Use Refresh shared game or enable auto-refresh to check for moves from the other player."
+                                f"Shared game loaded. You are playing "
+                                f"{assigned_label}. Refresh manually or enable auto-refresh "
+                                f"to see the other player's moves."
                             ),
                         )
+                        queue_shared_game_side_assignment(assigned_side)
                         st.rerun()
 
 
@@ -581,6 +732,16 @@ def render_shared_game_refresh_shortcut() -> None:
 
     st.write("")
     st.markdown("**Shared game**")
+
+    turn_guidance = shared_game_turn_guidance(
+        st.session_state.shared_game_role,
+        st.session_state.fen,
+    )
+
+    if turn_guidance == "Your move.":
+        st.success(turn_guidance)
+    else:
+        st.info(turn_guidance)
 
     if st.button(
         "Refresh shared game",
@@ -675,7 +836,7 @@ def render_game_setup() -> None:
 def main() -> None:
     st.set_page_config(page_title="Boardstep", layout="wide")
     initialize_game_state()
-
+    apply_pending_shared_game_side_assignment()
     render_app_header()
     render_game_setup()
 
@@ -686,6 +847,11 @@ def main() -> None:
             _, orientation_col, _ = st.columns([0.85, 1.9, 0.25], gap="small")
 
             with orientation_col:
+                orientation_locked_by_shared_role = (
+                    bool(st.session_state.shared_game_id)
+                    and st.session_state.shared_game_role in ("white", "black")
+                )
+
                 board_orientation = st.radio(
                     "Board orientation",
                     options=("white", "black"),
@@ -695,6 +861,7 @@ def main() -> None:
                     horizontal=True,
                     key="board_orientation",
                     label_visibility="collapsed",
+                    disabled=orientation_locked_by_shared_role,
                     help=(
                         "This changes only your local board view. "
                         "It is not saved to shared games."
