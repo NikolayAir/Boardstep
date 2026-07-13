@@ -415,7 +415,7 @@ def render_shared_game_controls() -> None:
         if active_game_id:
             st.markdown("**Mode:** Shared game mode")
         else:
-            st.markdown("**Mode:** Local practice mode")
+            st.markdown("**Mode:** Shared game setup")
 
         if active_game_id:
             st.caption(
@@ -713,6 +713,7 @@ def main() -> None:
                 reset_game=reset_game,
                 render_fen_load_controls=render_fen_load_controls,
                 game_mode=st.session_state.game_mode,
+                shared_game_active=bool(st.session_state.shared_game_id),
                 computer_level=st.session_state.computer_level,
                 player_side=st.session_state.player_side,
                 last_computer_move=st.session_state.last_computer_move,
