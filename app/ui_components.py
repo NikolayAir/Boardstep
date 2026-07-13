@@ -196,8 +196,14 @@ def render_typed_move_form(
                 )
 
 
-def format_game_mode(game_mode: str) -> str:
-    """Return a readable label for the active play mode."""
+def format_game_mode(
+    game_mode: str,
+    shared_game_active: bool = False,
+) -> str:
+    """Return a readable label for the current play-mode state."""
+    if game_mode == "shared" and not shared_game_active:
+        return "Shared game setup"
+
     labels = {
         "local": "Local practice",
         "computer": "Computer practice",
@@ -249,9 +255,10 @@ def render_game_actions(reset_game: ResetGame) -> None:
     with st.expander("Game actions"):
         st.caption("Reset starts a new game and clears the current move history.")
 
-        if st.button("Reset game"):
-            reset_game()
-            st.rerun()
+        st.button(
+            "Reset game",
+            on_click=reset_game,
+        )
 
 
 def render_game_panel(
@@ -262,6 +269,7 @@ def render_game_panel(
     reset_game: ResetGame,
     render_fen_load_controls: RenderControls,
     game_mode: str,
+    shared_game_active: bool,
     computer_level: str,
     player_side: str,
     last_computer_move: str | None,
@@ -271,7 +279,9 @@ def render_game_panel(
 
     st.markdown(f"**Status:** {game_status(fen)}")
     st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
-    st.markdown(f"**Mode:** {format_game_mode(game_mode)}")
+    st.markdown(
+        f"**Mode:** {format_game_mode(game_mode, shared_game_active)}"
+    )
 
     if game_mode == "computer":
         st.markdown(f"**You play:** {format_player_side(player_side)}")
