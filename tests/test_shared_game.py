@@ -7,6 +7,9 @@ from boardstep.shared_game import (
     SHARED_GAME_ID_ALPHABET,
     create_shared_game_state,
     generate_shared_game_id,
+    normalize_shared_game_side,
+    opposite_shared_game_side,
+    resolve_creator_side,
     normalize_shared_game_role,
     shared_game_move_restriction_message,
     shared_game_role_can_move,
@@ -127,3 +130,57 @@ def test_shared_game_turn_guidance_reports_current_role_state() -> None:
     assert shared_game_turn_guidance("black", black_to_move_fen) == "Your move."
     assert shared_game_turn_guidance("white", black_to_move_fen) == "Waiting for Black."
     assert shared_game_turn_guidance("observer", STARTING_FEN) == "Observer mode."
+
+
+def test_create_shared_game_state_defaults_creator_side_to_white() -> None:
+    state = create_shared_game_state("game-side-001")
+
+    assert state.creator_side == "white"
+
+
+def test_create_shared_game_state_normalizes_creator_side() -> None:
+    state = create_shared_game_state(
+        "game-side-002",
+        creator_side=" Black ",
+    )
+
+    assert state.creator_side == "black"
+
+
+def test_create_shared_game_state_rejects_invalid_creator_side() -> None:
+    with pytest.raises(ValueError, match="white or black"):
+        create_shared_game_state(
+            "game-side-003",
+            creator_side="observer",
+        )
+
+
+def test_normalize_shared_game_side_accepts_playable_sides() -> None:
+    assert normalize_shared_game_side(" White ") == "white"
+    assert normalize_shared_game_side("BLACK") == "black"
+
+
+def test_opposite_shared_game_side_returns_other_color() -> None:
+    assert opposite_shared_game_side("white") == "black"
+    assert opposite_shared_game_side("black") == "white"
+
+
+def test_resolve_creator_side_accepts_explicit_color() -> None:
+    assert resolve_creator_side(" White ") == "white"
+    assert resolve_creator_side("BLACK") == "black"
+
+
+def test_resolve_creator_side_uses_random_choice(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "boardstep.shared_game.secrets.choice",
+        lambda options: "black",
+    )
+
+    assert resolve_creator_side("random") == "black"
+
+
+def test_resolve_creator_side_rejects_invalid_selection() -> None:
+    with pytest.raises(ValueError, match="white, black, or random"):
+        resolve_creator_side("observer")

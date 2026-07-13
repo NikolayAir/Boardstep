@@ -50,6 +50,7 @@ A shared game needs at least:
 * `game_id`
 * current `fen`
 * move history
+* creator side
 * creation timestamp
 * last update timestamp
 * last move number
@@ -62,6 +63,7 @@ shared_games
 game_id text primary key
 fen text not null
 move_history jsonb not null
+creator_side text not null default 'white'
 created_at timestamptz not null
 updated_at timestamptz not null
 last_move_number integer not null

@@ -20,10 +20,17 @@ Recommended first columns:
 game_id text primary key
 fen text not null
 move_history jsonb not null
+creator_side text not null default 'white'
 created_at timestamptz not null
 updated_at timestamptz not null
 last_move_number integer not null
 ```
+
+## Creator-side migration
+
+For databases created before the creator-side field was introduced, run the SQL in `docs/sql/add-shared-game-creator-side.sql`.
+
+Existing rows default to White. New games explicitly store the side assigned to the creator.
 
 The `last_move_number` column is used as a simple stale-state check. Before saving a move, the app can compare the stored move number with the move number the user loaded. If they do not match, the app should avoid silently overwriting newer game state.
 

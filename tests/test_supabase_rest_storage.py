@@ -77,6 +77,7 @@ def test_create_shared_game_posts_record() -> None:
     created_at = datetime(2026, 6, 22, 12, 0, tzinfo=timezone.utc)
     state = create_shared_game_state(
         "game-001",
+        creator_side="black",
         created_at=created_at,
         updated_at=created_at,
     )
@@ -84,6 +85,7 @@ def test_create_shared_game_posts_record() -> None:
         "game_id": "game-001",
         "fen": state.fen,
         "move_history": [],
+        "creator_side": "black",
         "created_at": "2026-06-22T12:00:00Z",
         "updated_at": "2026-06-22T12:00:00Z",
         "last_move_number": 0,
@@ -97,6 +99,7 @@ def test_create_shared_game_posts_record() -> None:
     )
 
     assert saved_state.game_id == "game-001"
+    assert saved_state.creator_side == "black"
     assert len(session.calls) == 1
 
     method, url, kwargs = session.calls[0]
@@ -104,6 +107,7 @@ def test_create_shared_game_posts_record() -> None:
     assert url == "https://example.supabase.co/rest/v1/shared_games"
     assert kwargs["headers"]["Prefer"] == "return=representation"
     assert kwargs["json"]["game_id"] == "game-001"
+    assert kwargs["json"]["creator_side"] == "black"
     assert kwargs["json"]["last_move_number"] == 0
 
 
@@ -112,6 +116,7 @@ def test_load_shared_game_returns_state() -> None:
         "game_id": "game-002",
         "fen": create_shared_game_state("game-002").fen,
         "move_history": ["e2e4"],
+        "creator_side": "black",
         "created_at": "2026-06-22T12:00:00Z",
         "updated_at": "2026-06-22T12:01:00Z",
         "last_move_number": 1,
@@ -127,6 +132,7 @@ def test_load_shared_game_returns_state() -> None:
     assert state is not None
     assert state.game_id == "game-002"
     assert state.move_history == ("e2e4",)
+    assert state.creator_side == "black"
 
     method, _, kwargs = session.calls[0]
     assert method == "get"
@@ -160,6 +166,7 @@ def test_save_shared_game_after_move_patches_with_stale_state_guard() -> None:
         "game_id": "game-003",
         "fen": state.fen,
         "move_history": ["e2e4"],
+        "creator_side": "white",
         "created_at": "2026-06-22T12:00:00Z",
         "updated_at": "2026-06-22T12:01:00Z",
         "last_move_number": 1,
@@ -181,6 +188,7 @@ def test_save_shared_game_after_move_patches_with_stale_state_guard() -> None:
         "game_id": "eq.game-003",
         "last_move_number": "eq.0",
     }
+    assert kwargs["json"]["creator_side"] == "white"
 
 
 def test_save_shared_game_after_move_raises_when_record_changed() -> None:

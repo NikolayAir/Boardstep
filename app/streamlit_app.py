@@ -111,6 +111,9 @@ def initialize_game_state() -> None:
     if "shared_game_role" not in st.session_state:
         st.session_state.shared_game_role = DEFAULT_SHARED_GAME_ROLE
 
+    if "shared_game_creator_side" not in st.session_state:
+        st.session_state.shared_game_creator_side = "white"
+
     if "game_mode" not in st.session_state:
         st.session_state.game_mode = "local"
 
@@ -131,6 +134,7 @@ def clear_shared_game_session() -> None:
     st.session_state.shared_game_status = None
     st.session_state.shared_game_auto_refresh_enabled = False
     st.session_state.shared_game_last_synced_at = None
+    st.session_state.shared_game_creator_side = "white"
 
 
 def mark_shared_game_synced() -> None:
@@ -230,6 +234,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
         st.session_state.shared_game_id,
         fen=st.session_state.fen,
         move_history=st.session_state.move_history,
+        creator_side=st.session_state.shared_game_creator_side,
     )
 
     try:
@@ -388,6 +393,7 @@ def apply_shared_game_state_to_session(
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     st.session_state.shared_game_id = state.game_id
+    st.session_state.shared_game_creator_side = state.creator_side
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
     mark_shared_game_synced()

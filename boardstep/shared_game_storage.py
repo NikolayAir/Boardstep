@@ -31,6 +31,7 @@ def shared_game_state_to_record(state: SharedGameState) -> dict[str, Any]:
         "game_id": state.game_id,
         "fen": state.fen,
         "move_history": list(state.move_history),
+        "creator_side": state.creator_side,
         "created_at": _format_timestamp(state.created_at),
         "updated_at": _format_timestamp(state.updated_at),
         "last_move_number": state.last_move_number,
@@ -45,6 +46,11 @@ def shared_game_state_from_record(record: Mapping[str, Any]) -> SharedGameState:
     game_id = _required_text(record, "game_id")
     fen = _required_text(record, "fen")
     move_history = _move_history_from_record(record["move_history"])
+    creator_side = _text_with_default(
+        record,
+        "creator_side",
+        default="white",
+    )
     created_at = _parse_timestamp(record["created_at"], field_name="created_at")
     updated_at = _parse_timestamp(record["updated_at"], field_name="updated_at")
 
@@ -52,6 +58,7 @@ def shared_game_state_from_record(record: Mapping[str, Any]) -> SharedGameState:
         game_id=game_id,
         fen=fen,
         move_history=move_history,
+        creator_side=creator_side,
         created_at=created_at,
         updated_at=updated_at,
     )
@@ -94,6 +101,18 @@ def _required_text(record: Mapping[str, Any], field_name: str) -> str:
         raise ValueError(f"{field_name} must be a non-empty string")
 
     return value.strip()
+
+
+def _text_with_default(
+    record: Mapping[str, Any],
+    field_name: str,
+    *,
+    default: str,
+) -> str:
+    if field_name not in record:
+        return default
+
+    return _required_text(record, field_name)
 
 
 def _move_history_from_record(value: Any) -> tuple[str, ...]:

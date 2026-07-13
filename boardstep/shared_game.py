@@ -19,8 +19,40 @@ from boardstep.game import STARTING_FEN, side_to_move, validate_fen_position
 SHARED_GAME_ID_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"
 DEFAULT_SHARED_GAME_ID_LENGTH = 10
 DEFAULT_SHARED_GAME_ROLE = "observer"
+SHARED_GAME_SIDES = ("white", "black")
 SHARED_GAME_ROLES = ("white", "black", "observer")
+CREATOR_SIDE_OPTIONS = ("white", "black", "random")
+SharedGameSide = Literal["white", "black"]
 SharedGameRole = Literal["white", "black", "observer"]
+
+
+def normalize_shared_game_side(side: str) -> SharedGameSide:
+    """Normalize and validate a playable shared-game side."""
+    normalized_side = side.strip().lower()
+
+    if normalized_side not in SHARED_GAME_SIDES:
+        raise ValueError("Shared game side must be white or black.")
+
+    return cast(SharedGameSide, normalized_side)
+
+
+def resolve_creator_side(selection: str) -> SharedGameSide:
+    """Resolve White, Black, or Random to one stored creator side."""
+    normalized_selection = selection.strip().lower()
+
+    if normalized_selection not in CREATOR_SIDE_OPTIONS:
+        raise ValueError("Creator side must be white, black, or random.")
+
+    if normalized_selection == "random":
+        return cast(SharedGameSide, secrets.choice(SHARED_GAME_SIDES))
+
+    return cast(SharedGameSide, normalized_selection)
+
+
+def opposite_shared_game_side(side: str) -> SharedGameSide:
+    """Return the playable side opposite the supplied shared-game side."""
+    normalized_side = normalize_shared_game_side(side)
+    return "black" if normalized_side == "white" else "white"
 
 
 def normalize_shared_game_role(role: str) -> SharedGameRole:
@@ -82,6 +114,7 @@ class SharedGameState:
     game_id: str
     fen: str
     move_history: tuple[str, ...]
+    creator_side: SharedGameSide
     created_at: datetime
     updated_at: datetime
 
@@ -108,6 +141,7 @@ def create_shared_game_state(
     game_id: str,
     fen: str = STARTING_FEN,
     move_history: Sequence[str] | None = None,
+    creator_side: str = "white",
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
 ) -> SharedGameState:
@@ -118,6 +152,7 @@ def create_shared_game_state(
         raise ValueError("game_id must not be empty")
 
     validated_fen = validate_fen_position(fen)
+    normalized_creator_side = normalize_shared_game_side(creator_side)
 
     timestamp = datetime.now(timezone.utc)
     created = created_at or timestamp
@@ -127,6 +162,7 @@ def create_shared_game_state(
         game_id=normalized_game_id,
         fen=validated_fen,
         move_history=tuple(move_history or ()),
+        creator_side=normalized_creator_side,
         created_at=created,
         updated_at=updated,
     )
