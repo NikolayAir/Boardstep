@@ -6,11 +6,13 @@ It currently lets you practice legal chess moves on an interactive board, play l
 
 Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
-It also includes a shared game prototype. You can create a shared game ID, load it in another browser session, refresh manually or enable optional auto-refresh to check for the latest saved position, and leave shared mode without deleting the saved game.
+It also includes a shared game prototype. When creating a game, you can choose White, Black, or Random. Another browser session that loads the game ID is assigned the opposite color. Each session can play its assigned side or switch to Observer mode, then use auto-refresh for convenient syncing or refresh manually as a fallback.
 
 Live demo: https://boardstep.streamlit.app
 
-![Boardstep v0.13.0 shared game auto-refresh](docs/assets/boardstep-v0.13.0-auto-refresh.png)
+![Boardstep v0.14.0 shared game color selection](docs/assets/boardstep-v0.14.0-color-selection.png)
+
+![Boardstep v0.14.0 shared gameplay](docs/assets/boardstep-v0.14.0-shared-gameplay.png)
 
 The deployed demo remains a prototype. Shared game features require configured shared-game storage and use manual refresh or polling-based auto-refresh rather than true real-time multiplayer.
 
@@ -63,6 +65,11 @@ Computer practice:
 Shared game prototype:
 
 * create a shared game ID when shared storage is configured
+* choose White, Black, or Random when creating a shared game
+* assign the opposite color to another browser session that loads the game ID
+* play only as the locally assigned color or switch to Observer mode
+* see turn guidance and prevent moves that do not match the selected role
+* align board orientation with the assigned playing color
 * load a shared game by ID in another browser session
 * see whether the app is in local practice mode or shared game mode
 * find and reuse the active shared game ID
@@ -81,11 +88,15 @@ You can copy the FEN from one session and paste it into another session to resto
 
 ## Shared game prototype
 
-Boardstep includes a shared game flow backed by external storage, with manual refresh and optional auto-refresh.
+Boardstep includes a shared game flow backed by external storage, with auto-refresh for convenient syncing and manual refresh as a fallback.
 
-One browser session creates a shared game ID, and another session loads the same ID. After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position.
+One browser session creates a shared game ID and chooses White, Black, or Random. Another browser session that loads the same ID is assigned the opposite color. Board orientation, move permissions, and turn guidance follow the local assignment. Either session can switch to Observer mode to watch without making moves.
+
+After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position.
 
 Leaving shared game mode returns the current browser session to local practice. It does not delete the saved shared game.
+
+Color assignment is browser-session guidance rather than protected player ownership. Additional browser sessions that load the same ID can receive the same joining color.
 
 This is not real-time multiplayer. Auto-refresh uses polling rather than live WebSocket synchronization. There are no accounts, private invites, clocks, ratings, chat, or chess-engine analysis. Anyone with the shared game ID can load that game.
 
@@ -99,13 +110,15 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * The clickable board may take a moment to appear on first load.
 * Local practice is session-based unless a shared game is created or loaded.
 * Shared games use manual refresh with optional polling-based auto-refresh, require configured storage, and are not real-time synchronized.
-* Board orientation is local to the current browser/session and is not saved to shared-game state.
-* Shared games do not assign White/Black players or restrict moves by player side yet.
+* Shared-game board orientation follows the locally selected role and is not stored as shared-game state.
+* Color assignment and Observer mode are browser-session guidance rather than account-backed player ownership.
+* Multiple browser sessions can load the same game ID and receive the same joining color.
 * There are no accounts, private invites, clocks, ratings, chat, external chess engine, Elo calibration, or AI coach.
 * The computer opponent is a simple rule-based practice helper, not an engine-strength opponent.
 
 ## Version history
 
+* `v0.14.0` — shared game side assignment and turn guidance. Lets creators choose White, Black, or Random, assigns the opposite color to joined browser sessions, adds Observer mode and side-based move restrictions, persists creator-side data with backward-compatible storage handling, and improves shared-mode and auto-refresh behavior.
 * `v0.13.0` — automatic shared game refresh. Adds optional polling-based auto-refresh for shared games, shows the latest local sync time, pauses refresh while choosing a move, keeps manual refresh as a fallback, and updates shared-game wording while preserving the prototype shared-game model.
 * `v0.12.0` — computer-practice mode. Adds local play against a simple rule-based Python computer opponent, practice levels from Beginner to Intermediate, side selection, visible level descriptions, queen-promotion handling for simple promotion input, and reset behavior when side or level changes.
 * `v0.11.0` — frontend assets and layout polish. Separates the clickable board into a lightweight JavaScript component with HTML and CSS assets, adds a modest Streamlit theme, and groups the board and game panel more clearly.
@@ -122,10 +135,12 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Possible next steps
 
-* define player side selection for shared games
-* add side-based move rules for shared game mode
+* add a Hard computer-practice level with deeper rule-based move search and stronger handcrafted position evaluation
+* add shareable game links and a clearer copy-and-join flow
+* add optional player names and clearer joining guidance
 * add a lightweight game summary panel
 * improve clickable-board loading and responsive layout
+* explore protected player seats or authentication for a later shared-game version
 
 ## Run locally
 
