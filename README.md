@@ -10,7 +10,7 @@ It also includes a shared game prototype. You can create a shared game ID, load 
 
 Live demo: https://boardstep.streamlit.app
 
-![Boardstep v0.12.0 computer practice mode](docs/assets/boardstep-v0.12.0-computer-practice.png)
+![Boardstep v0.13.0 shared game auto-refresh](docs/assets/boardstep-v0.13.0-auto-refresh.png)
 
 The deployed demo remains a prototype. Shared game features require configured shared-game storage and use manual refresh or polling-based auto-refresh rather than true real-time multiplayer.
 
@@ -106,6 +106,7 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Version history
 
+* `v0.13.0` — automatic shared game refresh. Adds optional polling-based auto-refresh for shared games, shows the latest local sync time, pauses refresh while choosing a move, keeps manual refresh as a fallback, and updates shared-game wording while preserving the prototype shared-game model.
 * `v0.12.0` — computer-practice mode. Adds local play against a simple rule-based Python computer opponent, practice levels from Beginner to Intermediate, side selection, visible level descriptions, queen-promotion handling for simple promotion input, and reset behavior when side or level changes.
 * `v0.11.0` — frontend assets and layout polish. Separates the clickable board into a lightweight JavaScript component with HTML and CSS assets, adds a modest Streamlit theme, and groups the board and game panel more clearly.
 * `v0.10.0` — board orientation toggle. Adds a local White-at-bottom / Black-at-bottom board orientation setting while keeping click-to-move, coordinate labels, legal-target highlighting, typed move input, and coordinate fallback controls aligned.
