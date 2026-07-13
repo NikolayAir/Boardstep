@@ -371,12 +371,12 @@ def create_shared_game_from_current_session(
     return create_shared_game(config, state)
 
 
-def refresh_current_shared_game(config: SupabaseRestConfig) -> None:
-    """Refresh the current shared game from shared storage."""
+def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
+    """Refresh the current shared game and report whether a newer move was loaded."""
     active_game_id = st.session_state.shared_game_id
 
     if not active_game_id:
-        return
+        return False
 
     try:
         refreshed_state = load_shared_game(config, active_game_id)
@@ -385,26 +385,29 @@ def refresh_current_shared_game(config: SupabaseRestConfig) -> None:
             "Shared game could not be refreshed. "
             "Check the shared-game storage settings, table setup, or whether the storage service is paused."
         )
-        return
+        return False
 
     if refreshed_state is None:
         st.session_state.shared_game_status = (
             "The active shared game ID was not found. "
             "Check that the ID was copied correctly."
         )
-        return
+        return False
 
     previous_move_number = st.session_state.shared_game_last_move_number
+    has_new_move = refreshed_state.last_move_number != previous_move_number
 
-    if refreshed_state.last_move_number == previous_move_number:
-        status_message = "No new move found yet."
-    else:
+    if has_new_move:
         status_message = "Updated to the latest saved position."
+    else:
+        status_message = "No new move found yet."
 
     apply_shared_game_state_to_session(
         refreshed_state,
         status_message=status_message,
     )
+
+    return has_new_move
 
 
 def render_shared_game_controls() -> None:
