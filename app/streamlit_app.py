@@ -245,17 +245,6 @@ def is_computer_practice_turn() -> bool:
     )
 
 
-def should_start_computer_as_white() -> bool:
-    """Return whether the computer should make the opening move."""
-    return (
-        st.session_state.game_mode == "computer"
-        and st.session_state.player_side == "black"
-        and st.session_state.fen == STARTING_FEN
-        and not st.session_state.move_history
-        and current_side_to_move_key() == "white"
-    )
-
-
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
@@ -268,7 +257,6 @@ def reset_game() -> None:
         st.session_state.game_mode = "local"
 
     clear_shared_game_session()
-    apply_computer_reply_if_needed()
 
 
 def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
@@ -340,7 +328,7 @@ def apply_legal_move_to_session(move_text: str) -> str:
 
 
 def apply_computer_reply_if_needed() -> None:
-    """Apply a local computer reply when it is the computer's turn."""
+    """Apply a pending local computer move when it is the computer's turn."""
     if not is_computer_practice_turn():
         return
 
@@ -384,8 +372,6 @@ def apply_move_text(move_text: str) -> None:
             save_current_shared_game_position(config)
 
         return
-
-    apply_computer_reply_if_needed()
 
 
 def load_fen_position(fen_text: str) -> None:
@@ -827,15 +813,6 @@ def render_game_setup() -> None:
 
             st.caption("Changing side or level starts a new game.")
 
-            if should_start_computer_as_white():
-                apply_computer_reply_if_needed()
-                st.rerun()
-
-            if is_computer_practice_turn():
-                st.info(
-                    "It is the computer's turn. Reset the game if you changed sides mid-game."
-                )
-
             return
 
         render_shared_game_controls()
@@ -847,6 +824,10 @@ def main() -> None:
     apply_pending_shared_game_side_assignment()
     render_app_header()
     render_game_setup()
+
+    if is_computer_practice_turn():
+        with st.spinner("Computer is thinking..."):
+            apply_computer_reply_if_needed()
 
     board_col, game_col = st.columns([1.65, 1], gap="large")
 
