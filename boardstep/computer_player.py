@@ -5,9 +5,9 @@ from typing import Literal, cast
 
 import chess
 
-ComputerLevel = Literal["beginner", "easy", "basic", "intermediate"]
+ComputerLevel = Literal["beginner", "easy", "basic", "intermediate", "hard"]
 
-_VALID_LEVELS = {"beginner", "easy", "basic", "intermediate"}
+_VALID_LEVELS = {"beginner", "easy", "basic", "intermediate", "hard"}
 
 _PIECE_VALUES = {
     chess.PAWN: 1,
@@ -55,6 +55,9 @@ _OPENING_FULLMOVE_LIMIT = 10
 # Allows variety among reasonable opening moves instead of forcing one fixed opening.
 _OPENING_VARIETY_SCORE_MARGIN = 95
 
+_HARD_SEARCH_DEPTH = 3
+_SEARCH_INFINITY = 1_000_000
+
 
 def choose_computer_move(
     fen: str,
@@ -88,7 +91,14 @@ def choose_computer_move(
     if normalized_level == "basic":
         return _choose_basic_move(board, legal_moves, random_source).uci()
 
-    return _choose_intermediate_move(board, legal_moves, random_source).uci()
+    if normalized_level == "intermediate":
+        return _choose_intermediate_move(
+            board,
+            legal_moves,
+            random_source,
+        ).uci()
+
+    return _choose_hard_move(board, legal_moves).uci()
 
 
 def _normalize_level(level: str) -> ComputerLevel:
@@ -96,7 +106,7 @@ def _normalize_level(level: str) -> ComputerLevel:
 
     if normalized_level not in _VALID_LEVELS:
         raise ValueError(
-            "Computer level must be beginner, easy, basic, or intermediate."
+            "Computer level must be beginner, easy, basic, intermediate, or hard."
         )
 
     return cast(ComputerLevel, normalized_level)
@@ -245,6 +255,146 @@ def _choose_intermediate_opening_move(
     ]
 
     return _choose_weighted_scored_move(good_scored_candidates, rng)
+
+
+def _choose_hard_move(
+    board: chess.Board,
+    moves: list[chess.Move],
+) -> chess.Move:
+    """Choose a move using bounded alpha-beta search."""
+    perspective_color = board.turn
+    ordered_moves = _ordered_hard_moves(board, moves)
+    best_move = ordered_moves[0]
+    best_score = -_SEARCH_INFINITY
+    alpha = -_SEARCH_INFINITY
+    beta = _SEARCH_INFINITY
+
+    for move in ordered_moves:
+        board.push(move)
+
+        try:
+            score = _alpha_beta_score(
+                board,
+                depth=_HARD_SEARCH_DEPTH - 1,
+                alpha=alpha,
+                beta=beta,
+                perspective_color=perspective_color,
+            )
+        finally:
+            board.pop()
+
+        if score > best_score:
+            best_score = score
+            best_move = move
+
+        alpha = max(alpha, best_score)
+
+    return best_move
+
+
+def _alpha_beta_score(
+    board: chess.Board,
+    depth: int,
+    alpha: int,
+    beta: int,
+    perspective_color: chess.Color,
+) -> int:
+    """Return a bounded minimax score using alpha-beta pruning."""
+    if depth <= 0 or board.is_game_over():
+        return _position_score(board, perspective_color)
+
+    moves = _ordered_hard_moves(board, list(board.legal_moves))
+
+    if board.turn == perspective_color:
+        best_score = -_SEARCH_INFINITY
+
+        for move in moves:
+            board.push(move)
+
+            try:
+                score = _alpha_beta_score(
+                    board,
+                    depth=depth - 1,
+                    alpha=alpha,
+                    beta=beta,
+                    perspective_color=perspective_color,
+                )
+            finally:
+                board.pop()
+
+            best_score = max(best_score, score)
+            alpha = max(alpha, best_score)
+
+            if alpha >= beta:
+                break
+
+        return best_score
+
+    best_score = _SEARCH_INFINITY
+
+    for move in moves:
+        board.push(move)
+
+        try:
+            score = _alpha_beta_score(
+                board,
+                depth=depth - 1,
+                alpha=alpha,
+                beta=beta,
+                perspective_color=perspective_color,
+            )
+        finally:
+            board.pop()
+
+        best_score = min(best_score, score)
+        beta = min(beta, best_score)
+
+        if alpha >= beta:
+            break
+
+    return best_score
+
+
+def _ordered_hard_moves(
+    board: chess.Board,
+    moves: list[chess.Move],
+) -> list[chess.Move]:
+    """Order tactical moves first and use UCI text for stable tie-breaking."""
+    return sorted(
+        moves,
+        key=lambda move: _hard_move_order_key(board, move),
+    )
+
+
+def _hard_move_order_key(
+    board: chess.Board,
+    move: chess.Move,
+) -> tuple[int, int, int, int, str]:
+    is_capture = board.is_capture(move)
+    gives_check = board.gives_check(move)
+    is_checkmate = False
+
+    if gives_check:
+        board.push(move)
+
+        try:
+            is_checkmate = board.is_checkmate()
+        finally:
+            board.pop()
+
+    promotion_value = (
+        _PIECE_VALUES[move.promotion]
+        if move.promotion is not None
+        else 0
+    )
+
+    return (
+        -int(is_checkmate),
+        -promotion_value,
+        -int(is_capture),
+        -int(gives_check),
+        move.uci(),
+    )
 
 
 def _choose_weighted_scored_move(

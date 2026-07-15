@@ -153,6 +153,57 @@ def test_intermediate_prefers_safe_higher_material_gain():
     ) == "c3d2"
 
 
+def test_hard_returns_legal_move_from_starting_position():
+    move_text = choose_computer_move(
+        STARTING_FEN,
+        "hard",
+        rng=random.Random(1),
+    )
+
+    board = chess.Board(STARTING_FEN)
+
+    assert move_text is not None
+    assert chess.Move.from_uci(move_text) in board.legal_moves
+
+
+def test_hard_prefers_immediate_checkmate():
+    before_fools_mate_fen = (
+        "rnbqkbnr/pppp1ppp/8/4p3/6P1/5P2/PPPPP2P/RNBQKBNR "
+        "b KQkq g3 0 2"
+    )
+
+    assert choose_computer_move(
+        before_fools_mate_fen,
+        "hard",
+        rng=random.Random(1),
+    ) == "d8h4"
+
+
+def test_hard_finds_forced_mate_in_two():
+    fen = "8/k7/3K4/8/8/8/8/3Q4 w - - 0 11"
+
+    assert choose_computer_move(
+        fen,
+        "hard",
+        rng=random.Random(1),
+    ) == "d6c7"
+
+
+def test_hard_is_deterministic_for_equal_input():
+    first_move = choose_computer_move(
+        STARTING_FEN,
+        "hard",
+        rng=random.Random(7),
+    )
+    second_move = choose_computer_move(
+        STARTING_FEN,
+        "hard",
+        rng=random.Random(7),
+    )
+
+    assert first_move == second_move
+
+
 def test_invalid_computer_level_is_rejected():
     with pytest.raises(ValueError, match="Computer level"):
         choose_computer_move(STARTING_FEN, "expert")
