@@ -56,6 +56,7 @@ _OPENING_FULLMOVE_LIMIT = 10
 _OPENING_VARIETY_SCORE_MARGIN = 95
 
 _HARD_SEARCH_DEPTH = 3
+_HARD_QUIESCENCE_DEPTH = 2
 _SEARCH_INFINITY = 1_000_000
 
 
@@ -300,8 +301,17 @@ def _alpha_beta_score(
     perspective_color: chess.Color,
 ) -> int:
     """Return a bounded minimax score using alpha-beta pruning."""
-    if depth <= 0 or board.is_game_over():
+    if board.is_game_over():
         return _position_score(board, perspective_color)
+
+    if depth <= 0:
+        return _quiescence_score(
+            board,
+            depth=_HARD_QUIESCENCE_DEPTH,
+            alpha=alpha,
+            beta=beta,
+            perspective_color=perspective_color,
+        )
 
     moves = _ordered_hard_moves(board, list(board.legal_moves))
 
@@ -355,6 +365,103 @@ def _alpha_beta_score(
     return best_score
 
 
+def _quiescence_score(
+    board: chess.Board,
+    depth: int,
+    alpha: int,
+    beta: int,
+    perspective_color: chess.Color,
+) -> int:
+    """Extend leaf evaluation through bounded tactical continuations."""
+    if board.is_game_over():
+        return _position_score(board, perspective_color)
+
+    stand_pat = _position_score(board, perspective_color)
+    in_check = board.is_check()
+
+    if depth < 0:
+        return stand_pat
+
+    if in_check:
+        candidate_moves = list(board.legal_moves)
+    else:
+        if depth <= 0:
+            return stand_pat
+
+        candidate_moves = [
+            move
+            for move in board.legal_moves
+            if board.is_capture(move) or move.promotion is not None
+        ]
+
+        if not candidate_moves:
+            return stand_pat
+
+    moves = _ordered_hard_moves(board, candidate_moves)
+    maximizing = board.turn == perspective_color
+
+    if maximizing:
+        best_score = -_SEARCH_INFINITY if in_check else stand_pat
+
+        if not in_check:
+            if best_score >= beta:
+                return best_score
+
+            alpha = max(alpha, best_score)
+
+        for move in moves:
+            board.push(move)
+
+            try:
+                score = _quiescence_score(
+                    board,
+                    depth=depth - 1,
+                    alpha=alpha,
+                    beta=beta,
+                    perspective_color=perspective_color,
+                )
+            finally:
+                board.pop()
+
+            best_score = max(best_score, score)
+            alpha = max(alpha, best_score)
+
+            if alpha >= beta:
+                break
+
+        return best_score
+
+    best_score = _SEARCH_INFINITY if in_check else stand_pat
+
+    if not in_check:
+        if best_score <= alpha:
+            return best_score
+
+        beta = min(beta, best_score)
+
+    for move in moves:
+        board.push(move)
+
+        try:
+            score = _quiescence_score(
+                board,
+                depth=depth - 1,
+                alpha=alpha,
+                beta=beta,
+                perspective_color=perspective_color,
+            )
+        finally:
+            board.pop()
+
+        best_score = min(best_score, score)
+        beta = min(beta, best_score)
+
+        if alpha >= beta:
+            break
+
+    return best_score
+
+
 def _ordered_hard_moves(
     board: chess.Board,
     moves: list[chess.Move],
@@ -369,7 +476,7 @@ def _ordered_hard_moves(
 def _hard_move_order_key(
     board: chess.Board,
     move: chess.Move,
-) -> tuple[int, int, int, int, str]:
+) -> tuple[int, int, int, int, int, int, str]:
     is_capture = board.is_capture(move)
     gives_check = board.gives_check(move)
     is_checkmate = False
@@ -387,14 +494,45 @@ def _hard_move_order_key(
         if move.promotion is not None
         else 0
     )
+    captured_value, attacker_value = _capture_order_values(board, move)
 
     return (
         -int(is_checkmate),
         -promotion_value,
         -int(is_capture),
+        -captured_value,
+        attacker_value,
         -int(gives_check),
         move.uci(),
     )
+
+
+def _capture_order_values(
+    board: chess.Board,
+    move: chess.Move,
+) -> tuple[int, int]:
+    """Return captured and moving piece values for capture ordering."""
+    if not board.is_capture(move):
+        return 0, 0
+
+    moving_piece = board.piece_at(move.from_square)
+    attacker_value = (
+        _PIECE_VALUES[moving_piece.piece_type]
+        if moving_piece is not None
+        else 0
+    )
+
+    if board.is_en_passant(move):
+        return _PIECE_VALUES[chess.PAWN], attacker_value
+
+    captured_piece = board.piece_at(move.to_square)
+    captured_value = (
+        _PIECE_VALUES[captured_piece.piece_type]
+        if captured_piece is not None
+        else 0
+    )
+
+    return captured_value, attacker_value
 
 
 def _choose_weighted_scored_move(

@@ -3,7 +3,13 @@ import random
 import chess
 import pytest
 
-from boardstep.computer_player import choose_computer_move
+from boardstep.computer_player import (
+    _SEARCH_INFINITY,
+    _alpha_beta_score,
+    _ordered_hard_moves,
+    _position_score,
+    choose_computer_move,
+)
 from boardstep.game import STARTING_FEN
 
 
@@ -187,6 +193,83 @@ def test_hard_finds_forced_mate_in_two():
         "hard",
         rng=random.Random(1),
     ) == "d6c7"
+
+
+def test_hard_leaf_search_resolves_check_evasion():
+    board = chess.Board(
+        "7k/8/8/7Q/2K5/8/8/8 b - - 0 1"
+    )
+    evasion_scores = []
+
+    for move in list(board.legal_moves):
+        board.push(move)
+
+        try:
+            evasion_scores.append(
+                _position_score(board, chess.WHITE)
+            )
+        finally:
+            board.pop()
+
+    score = _alpha_beta_score(
+        board,
+        depth=0,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == min(evasion_scores)
+
+
+def test_hard_leaf_search_resolves_immediate_capture_sequence():
+    board = chess.Board(
+        "3r3k/8/8/3Q4/2K5/8/8/8 b - - 0 1"
+    )
+
+    score = _alpha_beta_score(
+        board,
+        depth=0,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == 0
+
+
+def test_hard_orders_more_valuable_capture_first():
+    board = chess.Board(
+        "2k5/p7/8/6q1/Q6P/8/8/1K6 w - - 0 1"
+    )
+    moves = [
+        chess.Move.from_uci("a4a7"),
+        chess.Move.from_uci("h4g5"),
+    ]
+
+    ordered_moves = _ordered_hard_moves(board, moves)
+
+    assert [move.uci() for move in ordered_moves] == [
+        "h4g5",
+        "a4a7",
+    ]
+
+
+def test_hard_orders_quiet_check_before_quiet_move():
+    board = chess.Board(
+        "7k/8/8/8/2K5/8/P7/3Q4 w - - 0 1"
+    )
+    moves = [
+        chess.Move.from_uci("a2a3"),
+        chess.Move.from_uci("d1h5"),
+    ]
+
+    ordered_moves = _ordered_hard_moves(board, moves)
+
+    assert [move.uci() for move in ordered_moves] == [
+        "d1h5",
+        "a2a3",
+    ]
 
 
 def test_hard_is_deterministic_for_equal_input():
