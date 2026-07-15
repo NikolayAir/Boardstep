@@ -1066,14 +1066,6 @@ def _endgame_king_activity_score(
 
 
 def _is_endgame(board: chess.Board) -> bool:
-    queens = board.pieces(chess.QUEEN, chess.WHITE) | board.pieces(
-        chess.QUEEN,
-        chess.BLACK,
-    )
-
-    if not queens:
-        return True
-
     return _non_pawn_material(board) <= 14
 
 

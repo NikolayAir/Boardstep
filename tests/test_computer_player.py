@@ -6,6 +6,7 @@ import pytest
 from boardstep.computer_player import (
     _SEARCH_INFINITY,
     _alpha_beta_score,
+    _is_endgame,
     _ordered_hard_moves,
     _position_score,
     choose_computer_move,
@@ -270,6 +271,22 @@ def test_hard_orders_quiet_check_before_quiet_move():
         "d1h5",
         "a2a3",
     ]
+
+
+def test_queenless_position_with_major_pieces_is_not_endgame():
+    board = chess.Board(
+        "r5k1/p2nrppp/1p6/3P4/8/8/PP3PPP/R3K1NR w KQ - 0 17"
+    )
+
+    assert not _is_endgame(board)
+
+
+def test_low_non_pawn_material_position_is_endgame():
+    board = chess.Board(
+        "8/8/8/3k4/8/3K4/4P3/8 w - - 0 1"
+    )
+
+    assert _is_endgame(board)
 
 
 def test_hard_is_deterministic_for_equal_input():
