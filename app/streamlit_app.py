@@ -58,12 +58,19 @@ PLAY_MODE_LABELS = {
     "shared": "Shared game",
 }
 
-COMPUTER_LEVEL_OPTIONS = ("beginner", "easy", "basic", "intermediate")
+COMPUTER_LEVEL_OPTIONS = (
+    "beginner",
+    "easy",
+    "basic",
+    "intermediate",
+    "hard",
+)
 COMPUTER_LEVEL_LABELS = {
     "beginner": "Beginner",
     "easy": "Easy",
     "basic": "Basic",
     "intermediate": "Intermediate",
+    "hard": "Hard",
 }
 
 PLAYER_SIDE_OPTIONS = ("white", "black")
@@ -814,7 +821,8 @@ def render_game_setup() -> None:
                     "- **Beginner:** random legal moves.\n"
                     "- **Easy:** prefers immediate mates, captures, checks, and promotions.\n"
                     "- **Basic:** chooses moves using simple material scoring.\n"
-                    "- **Intermediate:** looks one reply ahead and uses lightweight positional scoring."
+                    "- **Intermediate:** looks one reply ahead and uses lightweight positional scoring.\n"
+                    "- **Hard:** uses bounded deeper search and tactical continuation analysis."
                 )
 
             st.caption("Changing side or level starts a new game.")
