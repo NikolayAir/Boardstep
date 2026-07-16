@@ -20,6 +20,7 @@ from boardstep.game import (
     game_is_over,
     game_status_from_board,
     side_to_move,
+    threefold_draw_can_be_claimed,
     validate_fen_position,
 )
 
@@ -265,6 +266,33 @@ def current_game_status() -> str:
         current_game_board(),
         st.session_state.claimed_draw_reason,
     )
+
+
+def current_game_can_claim_threefold() -> bool:
+    """Return whether the local player may claim a threefold draw."""
+    if st.session_state.shared_game_id or current_game_is_over():
+        return False
+
+    if (
+        st.session_state.game_mode == "computer"
+        and current_side_to_move_key() != st.session_state.player_side
+    ):
+        return False
+
+    return threefold_draw_can_be_claimed(current_game_board())
+
+
+def claim_threefold_draw() -> None:
+    """Claim an available threefold-repetition draw."""
+    if not current_game_can_claim_threefold():
+        raise ValueError(
+            "A threefold-repetition draw cannot be claimed in the current state."
+        )
+
+    st.session_state.claimed_draw_reason = "threefold_repetition"
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+    clear_computer_practice_session()
 
 
 def current_side_to_move_key() -> str:
@@ -930,6 +958,8 @@ def main() -> None:
             render_game_panel(
                 fen=st.session_state.fen,
                 status_text=current_game_status(),
+                can_claim_threefold=current_game_can_claim_threefold(),
+                claim_threefold_draw=claim_threefold_draw,
                 move_history=st.session_state.move_history,
                 apply_move=apply_move_text,
                 reset_game=reset_game,

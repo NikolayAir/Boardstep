@@ -30,6 +30,7 @@ clickable_board_component = st.components.v2.component(
 )
 
 ApplyMove = Callable[[str], None]
+ClaimDraw = Callable[[], None]
 ResetGame = Callable[[], None]
 RenderControls = Callable[[], None]
 
@@ -267,6 +268,8 @@ def render_game_panel(
     *,
     fen: str,
     status_text: str,
+    can_claim_threefold: bool,
+    claim_threefold_draw: ClaimDraw,
     move_history: list[str],
     apply_move: ApplyMove,
     reset_game: ResetGame,
@@ -281,6 +284,19 @@ def render_game_panel(
     st.subheader("Current game")
 
     st.markdown(f"**Status:** {status_text}")
+
+    if can_claim_threefold:
+        if st.button(
+            "Claim threefold draw",
+            type="primary",
+            use_container_width=True,
+        ):
+            try:
+                claim_threefold_draw()
+                st.rerun()
+            except ValueError as exc:
+                st.error(f"Draw claim not accepted: {exc}")
+
     st.markdown(f"**Legal moves:** {legal_move_count(fen)}")
     st.markdown(
         f"**Mode:** {format_game_mode(game_mode, shared_game_active)}"
