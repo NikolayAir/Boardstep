@@ -35,6 +35,7 @@ from boardstep.shared_game import (
     resolve_creator_side,
     shared_game_move_restriction_message,
     shared_game_role_can_move,
+    shared_game_state_has_update,
     shared_game_turn_guidance,
 )
 
@@ -47,6 +48,7 @@ from boardstep.supabase_rest_storage import (
     create_supabase_rest_config,
     load_shared_game,
     save_shared_game_after_move,
+    save_shared_game_draw_claim,
 )
 
 from app.ui_components import (
@@ -269,11 +271,18 @@ def current_game_status() -> str:
 
 
 def current_game_can_claim_threefold() -> bool:
-    """Return whether the local player may claim a threefold draw."""
-    if st.session_state.shared_game_id or current_game_is_over():
+    """Return whether the current browser may claim a threefold draw."""
+    if current_game_is_over():
         return False
 
-    if (
+    if st.session_state.shared_game_id:
+        if not shared_game_role_can_move(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        ):
+            return False
+
+    elif (
         st.session_state.game_mode == "computer"
         and current_side_to_move_key() != st.session_state.player_side
     ):
@@ -288,6 +297,59 @@ def claim_threefold_draw() -> None:
         raise ValueError(
             "A threefold-repetition draw cannot be claimed in the current state."
         )
+
+    if st.session_state.shared_game_id:
+        config, _ = read_shared_game_storage_config()
+
+        if config is None:
+            raise ValueError(
+                "Shared storage is not configured for this session."
+            )
+
+        expected_last_move_number = (
+            st.session_state.shared_game_last_move_number
+        )
+
+        if expected_last_move_number is None:
+            raise ValueError(
+                "The shared game move number is unknown. "
+                "Refresh the shared game before claiming a draw."
+            )
+
+        claimed_state = create_shared_game_state(
+            st.session_state.shared_game_id,
+            fen=st.session_state.fen,
+            game_start_fen=st.session_state.game_start_fen,
+            move_uci_history=st.session_state.move_uci_history,
+            move_history=st.session_state.move_history,
+            claimed_draw_reason="threefold_repetition",
+            creator_side=st.session_state.shared_game_creator_side,
+        )
+
+        try:
+            saved_state = save_shared_game_draw_claim(
+                config,
+                claimed_state,
+                expected_last_move_number=expected_last_move_number,
+            )
+        except SharedGameStorageConflictError as exc:
+            raise ValueError(
+                "The shared game changed before the draw claim was saved. "
+                "Refresh the game and try again."
+            ) from exc
+        except Exception as exc:
+            raise ValueError(
+                "The draw claim could not be saved to shared storage."
+            ) from exc
+
+        apply_shared_game_state_to_session(
+            saved_state,
+            status_message=(
+                "Threefold repetition draw claimed and saved. "
+                "The other player can refresh or use auto-refresh."
+            ),
+        )
+        return
 
     st.session_state.claimed_draw_reason = "threefold_repetition"
     st.session_state.selected_square = None
@@ -549,7 +611,7 @@ def create_shared_game_from_current_session(
 
 
 def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
-    """Refresh the current shared game and report whether a newer move was loaded."""
+    """Refresh the shared game and report whether saved state changed."""
     active_game_id = st.session_state.shared_game_id
 
     if not active_game_id:
@@ -571,20 +633,27 @@ def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
         )
         return False
 
-    previous_move_number = st.session_state.shared_game_last_move_number
-    has_new_move = refreshed_state.last_move_number != previous_move_number
+    has_update = shared_game_state_has_update(
+        previous_last_move_number=(
+            st.session_state.shared_game_last_move_number
+        ),
+        previous_claimed_draw_reason=(
+            st.session_state.claimed_draw_reason
+        ),
+        refreshed_state=refreshed_state,
+    )
 
-    if has_new_move:
-        status_message = "Updated to the latest saved position."
+    if has_update:
+        status_message = "Updated to the latest saved game state."
     else:
-        status_message = "No new move found yet."
+        status_message = "No new move or game result found yet."
 
     apply_shared_game_state_to_session(
         refreshed_state,
         status_message=status_message,
     )
 
-    return has_new_move
+    return has_update
 
 
 def render_shared_game_controls() -> None:
@@ -798,9 +867,9 @@ def render_shared_game_auto_refresh(config: SupabaseRestConfig | None) -> None:
         st.caption("Auto-refresh paused while you are choosing a move.")
         return
 
-    refreshed_has_new_move = refresh_current_shared_game(config)
+    refreshed_has_update = refresh_current_shared_game(config)
 
-    if refreshed_has_new_move:
+    if refreshed_has_update:
         st.rerun()
 
     st.caption("Waiting for opponent move...")

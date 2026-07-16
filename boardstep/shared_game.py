@@ -133,6 +133,20 @@ class SharedGameState:
         return len(self.move_history)
 
 
+def shared_game_state_has_update(
+    *,
+    previous_last_move_number: int | None,
+    previous_claimed_draw_reason: ClaimedDrawReason | None,
+    refreshed_state: SharedGameState,
+) -> bool:
+    """Return whether refreshed shared state contains a move or draw update."""
+    return (
+        refreshed_state.last_move_number != previous_last_move_number
+        or refreshed_state.claimed_draw_reason
+        != previous_claimed_draw_reason
+    )
+
+
 def generate_shared_game_id(length: int = DEFAULT_SHARED_GAME_ID_LENGTH) -> str:
     """Generate a compact random ID for a shared game."""
 

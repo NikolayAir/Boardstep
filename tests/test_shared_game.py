@@ -13,6 +13,7 @@ from boardstep.shared_game import (
     normalize_shared_game_role,
     shared_game_move_restriction_message,
     shared_game_role_can_move,
+    shared_game_state_has_update,
     shared_game_turn_guidance,
 )
 
@@ -133,6 +134,56 @@ def test_shared_game_turn_guidance_reports_current_role_state() -> None:
     assert shared_game_turn_guidance("black", black_to_move_fen) == "Your move."
     assert shared_game_turn_guidance("white", black_to_move_fen) == "Waiting for Black."
     assert shared_game_turn_guidance("observer", STARTING_FEN) == "Observer mode."
+
+
+def test_shared_game_state_update_detects_move_or_draw_changes() -> None:
+    unchanged_state = create_shared_game_state("game-update")
+    moved_state = create_shared_game_state(
+        "game-update",
+        move_history=["e2e4"],
+    )
+
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    move_uci_history = repetition_cycle * 2
+    fen = STARTING_FEN
+
+    for move_text in move_uci_history:
+        fen, _ = apply_uci_move(fen, move_text)
+
+    claimed_state = create_shared_game_state(
+        "game-update",
+        fen=fen,
+        game_start_fen=STARTING_FEN,
+        move_uci_history=move_uci_history,
+        move_history=move_uci_history,
+        claimed_draw_reason="threefold_repetition",
+    )
+
+    assert not shared_game_state_has_update(
+        previous_last_move_number=0,
+        previous_claimed_draw_reason=None,
+        refreshed_state=unchanged_state,
+    )
+    assert shared_game_state_has_update(
+        previous_last_move_number=0,
+        previous_claimed_draw_reason=None,
+        refreshed_state=moved_state,
+    )
+    assert shared_game_state_has_update(
+        previous_last_move_number=claimed_state.last_move_number,
+        previous_claimed_draw_reason=None,
+        refreshed_state=claimed_state,
+    )
+    assert not shared_game_state_has_update(
+        previous_last_move_number=claimed_state.last_move_number,
+        previous_claimed_draw_reason="threefold_repetition",
+        refreshed_state=claimed_state,
+    )
 
 
 def test_create_shared_game_state_defaults_creator_side_to_white() -> None:
