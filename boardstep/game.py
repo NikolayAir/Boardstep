@@ -1,11 +1,19 @@
 """Core chess-state helpers for the Boardstep Streamlit app."""
 
-import chess
+from collections.abc import Sequence
 from typing import Literal
+
+import chess
+
 
 STARTING_FEN = chess.STARTING_FEN
 FILES = tuple("abcdefgh")
 BoardOrientation = Literal["white", "black"]
+RepetitionDrawState = Literal[
+    "claimable_threefold",
+    "automatic_fivefold",
+]
+ClaimedDrawReason = Literal["threefold_repetition"]
 
 
 def board_files(orientation: BoardOrientation = "white") -> tuple[str, ...]:
@@ -46,6 +54,65 @@ def validate_fen_position(fen: str) -> str:
         raise ValueError("Enter a valid FEN position.")
 
     return board.fen()
+
+
+def board_from_uci_history(
+    start_fen: str,
+    move_uci_history: Sequence[str],
+) -> chess.Board:
+    """Reconstruct a board with move-stack history from legal UCI moves."""
+    board = chess.Board(validate_fen_position(start_fen))
+
+    for move_number, move_text in enumerate(move_uci_history, start=1):
+        normalized_move = move_text.strip().lower()
+
+        try:
+            move = chess.Move.from_uci(normalized_move)
+        except ValueError as exc:
+            raise ValueError(
+                f"Move history entry {move_number} is not valid UCI."
+            ) from exc
+
+        if move not in board.legal_moves:
+            raise ValueError(
+                f"Move history entry {move_number} is illegal for its position."
+            )
+
+        board.push(move)
+
+    return board
+
+
+def repetition_draw_state(
+    board: chess.Board,
+) -> RepetitionDrawState | None:
+    """Return the current repetition-draw state for a board with history."""
+    if board.is_fivefold_repetition():
+        return "automatic_fivefold"
+
+    if board.is_repetition(3):
+        return "claimable_threefold"
+
+    return None
+
+
+def threefold_draw_can_be_claimed(board: chess.Board) -> bool:
+    """Return whether the current position has occurred at least three times."""
+    return (
+        not board.is_game_over(claim_draw=False)
+        and board.is_repetition(3)
+    )
+
+
+def game_is_over(
+    board: chess.Board,
+    claimed_draw_reason: ClaimedDrawReason | None = None,
+) -> bool:
+    """Return whether no further moves may be played."""
+    return (
+        claimed_draw_reason is not None
+        or board.is_game_over(claim_draw=False)
+    )
 
 
 def board_rows(
@@ -114,9 +181,13 @@ def legal_move_count(fen: str) -> int:
     return len(list(board.legal_moves))
 
 
-def game_status(fen: str) -> str:
-    """Return a short human-readable status for the current position."""
-    board = chess.Board(fen)
+def game_status_from_board(
+    board: chess.Board,
+    claimed_draw_reason: ClaimedDrawReason | None = None,
+) -> str:
+    """Return a short human-readable status for a board with history."""
+    if claimed_draw_reason == "threefold_repetition":
+        return "Draw claimed by threefold repetition."
 
     if board.is_checkmate():
         winner = "Black" if board.turn == chess.WHITE else "White"
@@ -128,10 +199,27 @@ def game_status(fen: str) -> str:
     if board.is_insufficient_material():
         return "Draw by insufficient material."
 
-    if board.is_check():
-        return f"{side_to_move(fen)} to move. Check."
+    repetition_state = repetition_draw_state(board)
 
-    return f"{side_to_move(fen)} to move."
+    if repetition_state == "automatic_fivefold":
+        return "Draw by fivefold repetition."
+
+    side = "White" if board.turn == chess.WHITE else "Black"
+
+    if board.is_check():
+        status = f"{side} to move. Check."
+    else:
+        status = f"{side} to move."
+
+    if threefold_draw_can_be_claimed(board):
+        return f"{status} Draw can be claimed by threefold repetition."
+
+    return status
+
+
+def game_status(fen: str) -> str:
+    """Return a short human-readable status for a FEN-only position."""
+    return game_status_from_board(chess.Board(fen))
 
 
 def apply_uci_move(fen: str, move_text: str) -> tuple[str, str]:

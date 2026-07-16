@@ -6,10 +6,15 @@ from boardstep.game import (
     board_files,
     board_ranks,
     board_rows,
+    board_from_uci_history,
     build_uci_move,
+    game_is_over,
     game_status,
+    game_status_from_board,
     legal_move_count,
     legal_target_squares,
+    repetition_draw_state,
+    threefold_draw_can_be_claimed,
     side_to_move,
     validate_fen_position,
 )
@@ -147,3 +152,138 @@ def test_board_rows_support_black_orientation():
     assert rows[-1]["e"] == "♚"
     assert rows[-1]["d"] == "♛"
 
+
+def test_board_from_uci_history_preserves_threefold_repetition_context():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 2,
+    )
+
+    assert board.is_repetition(3)
+    assert board.is_fivefold_repetition() is False
+
+
+def test_board_from_uci_history_preserves_fivefold_repetition_context():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 4,
+    )
+
+    assert board.is_fivefold_repetition()
+
+
+def test_board_from_uci_history_rejects_illegal_history():
+    with pytest.raises(ValueError, match="entry 2 is illegal"):
+        board_from_uci_history(
+            STARTING_FEN,
+            ("e2e4", "e2e3"),
+        )
+
+
+def test_repetition_draw_state_marks_threefold_as_claimable_not_automatic():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 2,
+    )
+
+    assert repetition_draw_state(board) == "claimable_threefold"
+    assert board.is_game_over(claim_draw=False) is False
+    assert game_status_from_board(board) == (
+        "White to move. Draw can be claimed by threefold repetition."
+    )
+
+
+def test_repetition_draw_state_marks_fivefold_as_automatic():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 4,
+    )
+
+    assert repetition_draw_state(board) == "automatic_fivefold"
+    assert board.is_game_over(claim_draw=False) is True
+    assert game_status_from_board(board) == "Draw by fivefold repetition."
+
+
+def test_repetition_draw_state_is_empty_for_ordinary_position():
+    board = board_from_uci_history(
+        STARTING_FEN,
+        ("e2e4", "e7e5"),
+    )
+
+    assert repetition_draw_state(board) is None
+
+
+def test_threefold_draw_can_be_claimed_without_ending_game_automatically():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 2,
+    )
+
+    assert threefold_draw_can_be_claimed(board)
+    assert game_is_over(board) is False
+
+
+def test_claimed_threefold_draw_ends_game():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 2,
+    )
+
+    assert game_is_over(board, "threefold_repetition")
+    assert game_status_from_board(
+        board,
+        "threefold_repetition",
+    ) == "Draw claimed by threefold repetition."
+
+
+def test_fivefold_repetition_ends_game_without_claim():
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        STARTING_FEN,
+        repetition_cycle * 4,
+    )
+
+    assert game_is_over(board)
