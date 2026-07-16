@@ -2,7 +2,7 @@
 
 Boardstep is a browser-based chess practice app built with Python and Streamlit.
 
-It currently lets you practice legal chess moves on an interactive board, play local practice games against a simple rule-based computer opponent, load positions from FEN, and follow the current position in a simple web interface.
+It currently lets you practice legal chess moves on an interactive board, play local practice games against a custom rule-based computer opponent, load positions from FEN, and follow the current position in a simple web interface.
 
 Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
@@ -51,13 +51,15 @@ Local practice:
 
 Computer practice:
 
-* play a local game against a simple rule-based Python computer opponent
+* play a local game against a custom rule-based Python computer opponent
 * choose whether to play White or Black
-* use several practice levels:
+* use Boardstep's own Python move-selection logic at every level, without Stockfish or any other external chess engine
+* use five practice levels:
   * Beginner: random legal moves
   * Easy: prefers immediate mates, captures, checks, and promotions
   * Basic: uses simple material scoring
   * Intermediate: uses opening priorities, looks one reply ahead, and applies lightweight positional scoring
+  * Hard: uses bounded alpha-beta search with limited tactical extensions for captures, promotions, and check evasions
 * see the selected practice level and last computer move in the game panel
 * automatically reset the local computer-practice game when changing side or level
 * use simple four-character promotion input that defaults to queen promotion when legal
@@ -113,11 +115,12 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * Shared-game board orientation follows the locally selected role and is not stored as shared-game state.
 * Color assignment and Observer mode are browser-session guidance rather than account-backed player ownership.
 * Multiple browser sessions can load the same game ID and receive the same joining color.
-* There are no accounts, private invites, clocks, ratings, chat, external chess engine, Elo calibration, or AI coach.
-* The computer opponent is a simple rule-based practice helper, not an engine-strength opponent.
+* There are no accounts, private invites, clocks, ratings, chat, external chess-engine integration, Elo calibration, or AI coach.
+* The computer opponent remains a lightweight rule-based practice helper, not an engine-strength opponent.
 
 ## Version history
 
+* `v0.15.0` — Hard computer-practice level. Adds bounded alpha-beta search with limited tactical continuation analysis, exposes Hard in the practice UI, recovers pending computer turns more reliably, and refines endgame classification without relying on an external chess engine.
 * `v0.14.0` — shared game side assignment and turn guidance. Lets creators choose White, Black, or Random, assigns the opposite color to joined browser sessions, adds Observer mode and side-based move restrictions, persists creator-side data with backward-compatible storage handling, and improves shared-mode and auto-refresh behavior.
 * `v0.13.0` — automatic shared game refresh. Adds optional polling-based auto-refresh for shared games, shows the latest local sync time, pauses refresh while choosing a move, keeps manual refresh as a fallback, and updates shared-game wording while preserving the prototype shared-game model.
 * `v0.12.0` — computer-practice mode. Adds local play against a simple rule-based Python computer opponent, practice levels from Beginner to Intermediate, side selection, visible level descriptions, queen-promotion handling for simple promotion input, and reset behavior when side or level changes.
@@ -135,11 +138,12 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Possible next steps
 
-* add a Hard computer-practice level with deeper rule-based move search and stronger handcrafted position evaluation
+* add history-aware repetition draw handling across local, computer, and shared games
+* make the board and game layout responsive across mobile, tablet, and desktop screens, keeping the full board visible without horizontal scrolling
+* add optional pawn promotion choice while keeping automatic queen promotion as the default
 * add shareable game links and a clearer copy-and-join flow
 * add optional player names and clearer joining guidance
 * add a lightweight game summary panel
-* improve clickable-board loading and responsive layout
 * explore protected player seats or authentication for a later shared-game version
 
 ## Run locally
