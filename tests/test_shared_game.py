@@ -22,7 +22,10 @@ def test_create_shared_game_state_uses_starting_position() -> None:
 
     assert state.game_id == "game-001"
     assert state.fen == STARTING_FEN
+    assert state.game_start_fen == STARTING_FEN
+    assert state.move_uci_history == ()
     assert state.move_history == ()
+    assert state.claimed_draw_reason is None
     assert state.last_move_number == 0
 
 
@@ -184,3 +187,120 @@ def test_resolve_creator_side_uses_random_choice(
 def test_resolve_creator_side_rejects_invalid_selection() -> None:
     with pytest.raises(ValueError, match="white, black, or random"):
         resolve_creator_side("observer")
+
+def test_create_shared_game_state_stores_structured_move_history() -> None:
+    fen = STARTING_FEN
+
+    for move_text in ("e2e4", "e7e5"):
+        fen, _ = apply_uci_move(fen, move_text)
+
+    state = create_shared_game_state(
+        "game-history-001",
+        fen=fen,
+        game_start_fen=STARTING_FEN,
+        move_uci_history=[" E2E4 ", "E7E5"],
+        move_history=["1. e2e4 (e4)", "2. e7e5 (e5)"],
+    )
+
+    assert state.game_start_fen == STARTING_FEN
+    assert state.move_uci_history == ("e2e4", "e7e5")
+    assert state.move_history == (
+        "1. e2e4 (e4)",
+        "2. e7e5 (e5)",
+    )
+    assert state.last_move_number == 2
+
+
+def test_create_shared_game_state_rejects_mismatched_structured_fen() -> None:
+    with pytest.raises(ValueError, match="does not reconstruct"):
+        create_shared_game_state(
+            "game-history-002",
+            fen=STARTING_FEN,
+            game_start_fen=STARTING_FEN,
+            move_uci_history=["e2e4"],
+            move_history=["1. e2e4 (e4)"],
+        )
+
+
+def test_create_shared_game_state_rejects_uci_history_longer_than_display_history() -> None:
+    fen, _ = apply_uci_move(STARTING_FEN, "e2e4")
+
+    with pytest.raises(ValueError, match="cannot be longer"):
+        create_shared_game_state(
+            "game-history-003",
+            fen=fen,
+            game_start_fen=STARTING_FEN,
+            move_uci_history=["e2e4"],
+            move_history=[],
+        )
+
+
+def test_create_shared_game_state_requires_start_fen_for_uci_history() -> None:
+    with pytest.raises(ValueError, match="game_start_fen is required"):
+        create_shared_game_state(
+            "game-history-004",
+            move_uci_history=["e2e4"],
+        )
+
+def test_create_shared_game_state_allows_structured_history_suffix() -> None:
+    baseline_fen = STARTING_FEN
+
+    for move_text in ("e2e4", "e7e5"):
+        baseline_fen, _ = apply_uci_move(baseline_fen, move_text)
+
+    current_fen, _ = apply_uci_move(baseline_fen, "g1f3")
+
+    state = create_shared_game_state(
+        "game-history-suffix",
+        fen=current_fen,
+        game_start_fen=baseline_fen,
+        move_uci_history=["g1f3"],
+        move_history=[
+            "1. e2e4 (e4)",
+            "2. e7e5 (e5)",
+            "3. g1f3 (Nf3)",
+        ],
+    )
+
+    assert state.game_start_fen == baseline_fen
+    assert state.move_uci_history == ("g1f3",)
+    assert state.last_move_number == 3
+
+def test_create_shared_game_state_normalizes_claimed_draw_reason() -> None:
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    state = create_shared_game_state(
+        "game-draw-001",
+        fen=(
+            "rnbqkbnr/pppppppp/8/8/8/8/"
+            "PPPPPPPP/RNBQKBNR w KQkq - 8 5"
+        ),
+        game_start_fen=STARTING_FEN,
+        move_uci_history=repetition_cycle * 2,
+        move_history=repetition_cycle * 2,
+        claimed_draw_reason=" THREEFOLD_REPETITION ",
+    )
+
+    assert state.claimed_draw_reason == "threefold_repetition"
+
+
+def test_create_shared_game_state_rejects_invalid_claimed_draw_reason() -> None:
+    with pytest.raises(ValueError, match="Claimed draw reason"):
+        create_shared_game_state(
+            "game-draw-002",
+            claimed_draw_reason="stalemate",
+        )
+
+def test_create_shared_game_state_rejects_unavailable_threefold_claim() -> None:
+    with pytest.raises(
+        ValueError,
+        match="Threefold repetition cannot be claimed",
+    ):
+        create_shared_game_state(
+            "game-draw-003",
+            claimed_draw_reason="threefold_repetition",
+        )

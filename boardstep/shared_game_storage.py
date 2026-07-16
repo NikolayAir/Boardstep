@@ -30,7 +30,10 @@ def shared_game_state_to_record(state: SharedGameState) -> dict[str, Any]:
     return {
         "game_id": state.game_id,
         "fen": state.fen,
+        "game_start_fen": state.game_start_fen,
+        "move_uci_history": list(state.move_uci_history),
         "move_history": list(state.move_history),
+        "claimed_draw_reason": state.claimed_draw_reason,
         "creator_side": state.creator_side,
         "created_at": _format_timestamp(state.created_at),
         "updated_at": _format_timestamp(state.updated_at),
@@ -46,6 +49,23 @@ def shared_game_state_from_record(record: Mapping[str, Any]) -> SharedGameState:
     game_id = _required_text(record, "game_id")
     fen = _required_text(record, "fen")
     move_history = _move_history_from_record(record["move_history"])
+    game_start_fen = _optional_text(record, "game_start_fen")
+
+    if game_start_fen is None:
+        move_uci_history = None
+    elif "move_uci_history" not in record:
+        raise ValueError(
+            "shared game record is missing: move_uci_history"
+        )
+    else:
+        move_uci_history = _move_history_from_record(
+            record["move_uci_history"]
+        )
+
+    claimed_draw_reason = _optional_text(
+        record,
+        "claimed_draw_reason",
+    )
     creator_side = _text_with_default(
         record,
         "creator_side",
@@ -58,6 +78,9 @@ def shared_game_state_from_record(record: Mapping[str, Any]) -> SharedGameState:
         game_id=game_id,
         fen=fen,
         move_history=move_history,
+        game_start_fen=game_start_fen,
+        move_uci_history=move_uci_history,
+        claimed_draw_reason=claimed_draw_reason,
         creator_side=creator_side,
         created_at=created_at,
         updated_at=updated_at,
@@ -96,6 +119,21 @@ def _validate_required_fields(record: Mapping[str, Any]) -> None:
 
 def _required_text(record: Mapping[str, Any], field_name: str) -> str:
     value = record[field_name]
+
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+
+    return value.strip()
+
+
+def _optional_text(
+    record: Mapping[str, Any],
+    field_name: str,
+) -> str | None:
+    value = record.get(field_name)
+
+    if value is None:
+        return None
 
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{field_name} must be a non-empty string")
