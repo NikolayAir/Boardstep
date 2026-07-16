@@ -2,6 +2,7 @@ import sys
 import time
 from pathlib import Path
 
+import chess
 import streamlit as st
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -14,7 +15,10 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_files,
+    board_from_uci_history,
     board_rows,
+    game_is_over,
+    game_status_from_board,
     side_to_move,
     validate_fen_position,
 )
@@ -239,6 +243,30 @@ def clear_computer_practice_session() -> None:
     st.session_state.last_computer_move = None
 
 
+def current_game_board() -> chess.Board:
+    """Reconstruct the current board with its known move history."""
+    return board_from_uci_history(
+        st.session_state.game_start_fen,
+        st.session_state.move_uci_history,
+    )
+
+
+def current_game_is_over() -> bool:
+    """Return whether no further moves may be played in the current game."""
+    return game_is_over(
+        current_game_board(),
+        st.session_state.claimed_draw_reason,
+    )
+
+
+def current_game_status() -> str:
+    """Return a history-aware status for the current game."""
+    return game_status_from_board(
+        current_game_board(),
+        st.session_state.claimed_draw_reason,
+    )
+
+
 def current_side_to_move_key() -> str:
     """Return the current side to move as a session-state key."""
     return side_to_move(st.session_state.fen).lower()
@@ -249,6 +277,7 @@ def is_computer_practice_turn() -> bool:
     return (
         st.session_state.game_mode == "computer"
         and not st.session_state.shared_game_id
+        and not current_game_is_over()
         and current_side_to_move_key() != st.session_state.player_side
     )
 
@@ -361,6 +390,11 @@ def apply_computer_reply_if_needed() -> None:
 
 def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
+    if current_game_is_over():
+        raise ValueError(
+            "The game is over. Reset the game or load a new position to continue."
+        )
+
     if is_computer_practice_turn():
         raise ValueError("It is the computer's turn in computer practice.")
 
@@ -895,6 +929,7 @@ def main() -> None:
 
             render_game_panel(
                 fen=st.session_state.fen,
+                status_text=current_game_status(),
                 move_history=st.session_state.move_history,
                 apply_move=apply_move_text,
                 reset_game=reset_game,
