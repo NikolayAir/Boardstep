@@ -1,8 +1,8 @@
 import sys
+import time
 from pathlib import Path
 
-import time
-
+import chess
 import streamlit as st
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
@@ -15,8 +15,12 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_files,
+    board_from_uci_history,
     board_rows,
+    game_is_over,
+    game_status_from_board,
     side_to_move,
+    threefold_draw_can_be_claimed,
     validate_fen_position,
 )
 
@@ -31,6 +35,7 @@ from boardstep.shared_game import (
     resolve_creator_side,
     shared_game_move_restriction_message,
     shared_game_role_can_move,
+    shared_game_state_has_update,
     shared_game_turn_guidance,
 )
 
@@ -43,6 +48,7 @@ from boardstep.supabase_rest_storage import (
     create_supabase_rest_config,
     load_shared_game,
     save_shared_game_after_move,
+    save_shared_game_draw_claim,
 )
 
 from app.ui_components import (
@@ -99,6 +105,15 @@ def initialize_game_state() -> None:
 
     if "move_history" not in st.session_state:
         st.session_state.move_history = []
+
+    if "game_start_fen" not in st.session_state:
+        st.session_state.game_start_fen = st.session_state.fen
+
+    if "move_uci_history" not in st.session_state:
+        st.session_state.move_uci_history = []
+
+    if "claimed_draw_reason" not in st.session_state:
+        st.session_state.claimed_draw_reason = None
 
     if "selected_square" not in st.session_state:
         st.session_state.selected_square = None
@@ -231,6 +246,117 @@ def clear_computer_practice_session() -> None:
     st.session_state.last_computer_move = None
 
 
+def current_game_board() -> chess.Board:
+    """Reconstruct the current board with its known move history."""
+    return board_from_uci_history(
+        st.session_state.game_start_fen,
+        st.session_state.move_uci_history,
+    )
+
+
+def current_game_is_over() -> bool:
+    """Return whether no further moves may be played in the current game."""
+    return game_is_over(
+        current_game_board(),
+        st.session_state.claimed_draw_reason,
+    )
+
+
+def current_game_status() -> str:
+    """Return a history-aware status for the current game."""
+    return game_status_from_board(
+        current_game_board(),
+        st.session_state.claimed_draw_reason,
+    )
+
+
+def current_game_can_claim_threefold() -> bool:
+    """Return whether the current browser may claim a threefold draw."""
+    if current_game_is_over():
+        return False
+
+    if st.session_state.shared_game_id:
+        if not shared_game_role_can_move(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        ):
+            return False
+
+    elif (
+        st.session_state.game_mode == "computer"
+        and current_side_to_move_key() != st.session_state.player_side
+    ):
+        return False
+
+    return threefold_draw_can_be_claimed(current_game_board())
+
+
+def claim_threefold_draw() -> None:
+    """Claim an available threefold-repetition draw."""
+    if not current_game_can_claim_threefold():
+        raise ValueError(
+            "A threefold-repetition draw cannot be claimed in the current state."
+        )
+
+    if st.session_state.shared_game_id:
+        config, _ = read_shared_game_storage_config()
+
+        if config is None:
+            raise ValueError(
+                "Shared storage is not configured for this session."
+            )
+
+        expected_last_move_number = (
+            st.session_state.shared_game_last_move_number
+        )
+
+        if expected_last_move_number is None:
+            raise ValueError(
+                "The shared game move number is unknown. "
+                "Refresh the shared game before claiming a draw."
+            )
+
+        claimed_state = create_shared_game_state(
+            st.session_state.shared_game_id,
+            fen=st.session_state.fen,
+            game_start_fen=st.session_state.game_start_fen,
+            move_uci_history=st.session_state.move_uci_history,
+            move_history=st.session_state.move_history,
+            claimed_draw_reason="threefold_repetition",
+            creator_side=st.session_state.shared_game_creator_side,
+        )
+
+        try:
+            saved_state = save_shared_game_draw_claim(
+                config,
+                claimed_state,
+                expected_last_move_number=expected_last_move_number,
+            )
+        except SharedGameStorageConflictError as exc:
+            raise ValueError(
+                "The shared game changed before the draw claim was saved. "
+                "Refresh the game and try again."
+            ) from exc
+        except Exception as exc:
+            raise ValueError(
+                "The draw claim could not be saved to shared storage."
+            ) from exc
+
+        apply_shared_game_state_to_session(
+            saved_state,
+            status_message=(
+                "Threefold repetition draw claimed and saved. "
+                "The other player can refresh or use auto-refresh."
+            ),
+        )
+        return
+
+    st.session_state.claimed_draw_reason = "threefold_repetition"
+    st.session_state.selected_square = None
+    st.session_state.click_move_error = None
+    clear_computer_practice_session()
+
+
 def current_side_to_move_key() -> str:
     """Return the current side to move as a session-state key."""
     return side_to_move(st.session_state.fen).lower()
@@ -241,6 +367,7 @@ def is_computer_practice_turn() -> bool:
     return (
         st.session_state.game_mode == "computer"
         and not st.session_state.shared_game_id
+        and not current_game_is_over()
         and current_side_to_move_key() != st.session_state.player_side
     )
 
@@ -248,7 +375,10 @@ def is_computer_practice_turn() -> bool:
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
+    st.session_state.game_start_fen = STARTING_FEN
+    st.session_state.move_uci_history = []
     st.session_state.move_history = []
+    st.session_state.claimed_draw_reason = None
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     clear_computer_practice_session()
@@ -276,7 +406,10 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     state = create_shared_game_state(
         st.session_state.shared_game_id,
         fen=st.session_state.fen,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
         move_history=st.session_state.move_history,
+        claimed_draw_reason=st.session_state.claimed_draw_reason,
         creator_side=st.session_state.shared_game_creator_side,
     )
 
@@ -306,7 +439,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
 
 def apply_legal_move_to_session(move_text: str) -> str:
     """Apply a legal move to the current session and return SAN notation."""
-    recorded_move_text = move_text.strip()
+    recorded_move_text = move_text.strip().lower()
 
     try:
         new_fen, san = apply_uci_move(st.session_state.fen, recorded_move_text)
@@ -319,6 +452,7 @@ def apply_legal_move_to_session(move_text: str) -> str:
         recorded_move_text = promoted_move_text
 
     st.session_state.fen = new_fen
+    st.session_state.move_uci_history.append(recorded_move_text)
     move_number = len(st.session_state.move_history) + 1
     st.session_state.move_history.append(
         f"{move_number}. {recorded_move_text} ({san})"
@@ -335,6 +469,8 @@ def apply_computer_reply_if_needed() -> None:
     computer_move = choose_computer_move(
         st.session_state.fen,
         st.session_state.computer_level,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
     )
 
     if computer_move is None:
@@ -346,6 +482,11 @@ def apply_computer_reply_if_needed() -> None:
 
 def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
+    if current_game_is_over():
+        raise ValueError(
+            "The game is over. Reset the game or load a new position to continue."
+        )
+
     if is_computer_practice_turn():
         raise ValueError("It is the computer's turn in computer practice.")
 
@@ -376,8 +517,13 @@ def apply_move_text(move_text: str) -> None:
 
 def load_fen_position(fen_text: str) -> None:
     """Load a validated FEN position into the current session."""
-    st.session_state.fen = validate_fen_position(fen_text)
+    loaded_fen = validate_fen_position(fen_text)
+
+    st.session_state.fen = loaded_fen
+    st.session_state.game_start_fen = loaded_fen
+    st.session_state.move_uci_history = []
     st.session_state.move_history = []
+    st.session_state.claimed_draw_reason = None
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     clear_computer_practice_session()
@@ -430,13 +576,18 @@ def apply_shared_game_state_to_session(
 ) -> None:
     """Load shared game state into the current Streamlit session."""
     st.session_state.fen = state.fen
+    st.session_state.game_start_fen = state.game_start_fen
+    st.session_state.move_uci_history = list(state.move_uci_history)
     st.session_state.move_history = list(state.move_history)
+    st.session_state.claimed_draw_reason = state.claimed_draw_reason
+
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     st.session_state.shared_game_id = state.game_id
     st.session_state.shared_game_creator_side = state.creator_side
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
+
     mark_shared_game_synced()
     clear_computer_practice_session()
 
@@ -451,7 +602,10 @@ def create_shared_game_from_current_session(
     state = create_shared_game_state(
         game_id,
         fen=st.session_state.fen,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
         move_history=st.session_state.move_history,
+        claimed_draw_reason=st.session_state.claimed_draw_reason,
         creator_side=creator_side,
     )
 
@@ -459,7 +613,7 @@ def create_shared_game_from_current_session(
 
 
 def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
-    """Refresh the current shared game and report whether a newer move was loaded."""
+    """Refresh the shared game and report whether saved state changed."""
     active_game_id = st.session_state.shared_game_id
 
     if not active_game_id:
@@ -481,20 +635,27 @@ def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
         )
         return False
 
-    previous_move_number = st.session_state.shared_game_last_move_number
-    has_new_move = refreshed_state.last_move_number != previous_move_number
+    has_update = shared_game_state_has_update(
+        previous_last_move_number=(
+            st.session_state.shared_game_last_move_number
+        ),
+        previous_claimed_draw_reason=(
+            st.session_state.claimed_draw_reason
+        ),
+        refreshed_state=refreshed_state,
+    )
 
-    if has_new_move:
-        status_message = "Updated to the latest saved position."
+    if has_update:
+        status_message = "Updated to the latest saved game state."
     else:
-        status_message = "No new move found yet."
+        status_message = "No new move or game result found yet."
 
     apply_shared_game_state_to_session(
         refreshed_state,
         status_message=status_message,
     )
 
-    return has_new_move
+    return has_update
 
 
 def render_shared_game_controls() -> None:
@@ -708,9 +869,9 @@ def render_shared_game_auto_refresh(config: SupabaseRestConfig | None) -> None:
         st.caption("Auto-refresh paused while you are choosing a move.")
         return
 
-    refreshed_has_new_move = refresh_current_shared_game(config)
+    refreshed_has_update = refresh_current_shared_game(config)
 
-    if refreshed_has_new_move:
+    if refreshed_has_update:
         st.rerun()
 
     st.caption("Waiting for opponent move...")
@@ -867,6 +1028,9 @@ def main() -> None:
 
             render_game_panel(
                 fen=st.session_state.fen,
+                status_text=current_game_status(),
+                can_claim_threefold=current_game_can_claim_threefold(),
+                claim_threefold_draw=claim_threefold_draw,
                 move_history=st.session_state.move_history,
                 apply_move=apply_move_text,
                 reset_game=reset_game,

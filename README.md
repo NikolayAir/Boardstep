@@ -31,7 +31,7 @@ flowchart LR
     Mode -. "computer practice" .-> Computer["Rule-based Python move selector"]
     Computer -. "legal UCI move" .-> Rules
 
-    Position -. "save move in shared mode" .-> Storage["Supabase/PostgreSQL via REST"]
+    Position -. "save move or draw claim in shared mode" .-> Storage["Supabase/PostgreSQL via REST"]
     UI -. "manual or auto refresh" .-> Storage
     Storage -. "loaded shared state" .-> State
 ```
@@ -46,6 +46,8 @@ Local practice:
 * switch the local board orientation between White-at-bottom and Black-at-bottom
 * use coordinate practice controls or typed UCI moves as fallback input
 * view move history
+* claim a draw when the same position has occurred three times
+* end the game automatically when the same position has occurred five times
 * copy the current position as FEN
 * load a position from FEN
 
@@ -60,6 +62,9 @@ Computer practice:
   * Basic: uses simple material scoring
   * Intermediate: uses opening priorities, looks one reply ahead, and applies lightweight positional scoring
   * Hard: uses bounded alpha-beta search with limited tactical extensions for captures, promotions, and check evasions
+* preserve full move history so automatic fivefold draws are detected at every level
+* let Intermediate and Hard account for claimable threefold outcomes during move evaluation
+* claim an available threefold draw on the human player's turn
 * see the selected practice level and last computer move in the game panel
 * automatically reset the local computer-practice game when changing side or level
 * use simple four-character promotion input that defaults to queen promotion when legal
@@ -76,6 +81,10 @@ Shared game prototype:
 * see whether the app is in local practice mode or shared game mode
 * find and reuse the active shared game ID
 * save moves to shared storage after creating or loading a shared game
+* preserve canonical UCI move history for repetition detection
+* claim an available threefold draw when it is the assigned side's turn
+* synchronize claimed draws between browser sessions
+* end the shared game automatically after fivefold repetition
 * manually refresh a shared game to load the latest saved position
 * enable optional auto-refresh to check for the latest saved position
 * see the latest local sync time
@@ -88,6 +97,8 @@ Boardstep shows the current position as FEN, a compact text code for a chess pos
 
 You can copy the FEN from one session and paste it into another session to restore the same board position. Loading a FEN clears the move history.
 
+FEN describes the current position but does not contain its prior move history. A position loaded from FEN therefore starts a new repetition-history baseline.
+
 ## Shared game prototype
 
 Boardstep includes a shared game flow backed by external storage, with auto-refresh for convenient syncing and manual refresh as a fallback.
@@ -95,6 +106,8 @@ Boardstep includes a shared game flow backed by external storage, with auto-refr
 One browser session creates a shared game ID and chooses White, Black, or Random. Another browser session that loads the same ID is assigned the opposite color. Board orientation, move permissions, and turn guidance follow the local assignment. Either session can switch to Observer mode to watch without making moves.
 
 After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position.
+
+Threefold draw claims are also saved and become visible to the other session after manual or automatic refresh. Fivefold repetition ends the game automatically without a separate claim.
 
 Leaving shared game mode returns the current browser session to local practice. It does not delete the saved shared game.
 
@@ -120,6 +133,7 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Version history
 
+* `v0.16.0` — history-aware repetition draws. Preserves the move history required for repetition detection, adds claimable threefold and automatic fivefold draws across local, computer, and shared games, synchronizes shared draw claims, detects automatic repetition endings at every computer level, and lets Intermediate and Hard account for claimable threefold draws during move evaluation.
 * `v0.15.0` — Hard computer-practice level. Adds bounded alpha-beta search with limited tactical continuation analysis, exposes Hard in the practice UI, recovers pending computer turns more reliably, and refines endgame classification without relying on an external chess engine.
 * `v0.14.0` — shared game side assignment and turn guidance. Lets creators choose White, Black, or Random, assigns the opposite color to joined browser sessions, adds Observer mode and side-based move restrictions, persists creator-side data with backward-compatible storage handling, and improves shared-mode and auto-refresh behavior.
 * `v0.13.0` — automatic shared game refresh. Adds optional polling-based auto-refresh for shared games, shows the latest local sync time, pauses refresh while choosing a move, keeps manual refresh as a fallback, and updates shared-game wording while preserving the prototype shared-game model.
@@ -138,7 +152,6 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Possible next steps
 
-* add history-aware repetition draw handling across local, computer, and shared games
 * make the board and game layout responsive across mobile, tablet, and desktop screens, keeping the full board visible without horizontal scrolling
 * add optional pawn promotion choice while keeping automatic queen promotion as the default
 * add shareable game links and a clearer copy-and-join flow

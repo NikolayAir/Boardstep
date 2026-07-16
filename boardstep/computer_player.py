@@ -1,9 +1,11 @@
 """Simple computer move selection helpers for Boardstep."""
 
 import random
-from typing import Literal, cast
+from typing import Literal, Sequence, cast
 
 import chess
+
+from boardstep.game import board_from_uci_history
 
 ComputerLevel = Literal["beginner", "easy", "basic", "intermediate", "hard"]
 
@@ -64,13 +66,20 @@ def choose_computer_move(
     fen: str,
     level: ComputerLevel,
     rng: random.Random | None = None,
+    *,
+    game_start_fen: str | None = None,
+    move_uci_history: Sequence[str] | None = None,
 ) -> str | None:
     """Return a legal UCI move for the selected practice level.
 
-    The helper is intentionally UI-independent. It does not read or modify
-    Streamlit session state, shared-game state, or move history.
+    The helper is UI-independent. Optional move history is supplied explicitly
+    so repetition outcomes can be evaluated without reading session state.
     """
-    board = chess.Board(fen)
+    board = _computer_board_from_state(
+        fen,
+        game_start_fen=game_start_fen,
+        move_uci_history=move_uci_history,
+    )
     normalized_level = _normalize_level(level)
 
     if board.is_game_over():
@@ -100,6 +109,36 @@ def choose_computer_move(
         ).uci()
 
     return _choose_hard_move(board, legal_moves).uci()
+
+
+def _computer_board_from_state(
+    fen: str,
+    *,
+    game_start_fen: str | None,
+    move_uci_history: Sequence[str] | None,
+) -> chess.Board:
+    """Return the current board with optional repetition history."""
+    current_board = chess.Board(fen)
+
+    if game_start_fen is None and move_uci_history is None:
+        return current_board
+
+    if game_start_fen is None or move_uci_history is None:
+        raise ValueError(
+            "game_start_fen and move_uci_history must be provided together"
+        )
+
+    history_board = board_from_uci_history(
+        game_start_fen,
+        move_uci_history,
+    )
+
+    if history_board.fen() != current_board.fen():
+        raise ValueError(
+            "Computer move history does not reconstruct the current FEN."
+        )
+
+    return history_board
 
 
 def _normalize_level(level: str) -> ComputerLevel:
@@ -293,6 +332,33 @@ def _choose_hard_move(
     return best_move
 
 
+def _is_automatic_repetition_draw(board: chess.Board) -> bool:
+    """Return whether repetition automatically ends the current game."""
+    return board.is_fivefold_repetition()
+
+
+def _opponent_can_claim_threefold(
+    board: chess.Board,
+    perspective_color: chess.Color,
+) -> bool:
+    """Return whether the human opponent can claim the current position."""
+    return (
+        board.turn != perspective_color
+        and board.is_repetition(3)
+    )
+
+
+def _search_position_score(
+    board: chess.Board,
+    perspective_color: chess.Color,
+) -> int:
+    """Return a terminal search score with automatic repetition as a draw."""
+    if _is_automatic_repetition_draw(board):
+        return 0
+
+    return _position_score(board, perspective_color)
+
+
 def _alpha_beta_score(
     board: chess.Board,
     depth: int,
@@ -302,7 +368,7 @@ def _alpha_beta_score(
 ) -> int:
     """Return a bounded minimax score using alpha-beta pruning."""
     if board.is_game_over():
-        return _position_score(board, perspective_color)
+        return _search_position_score(board, perspective_color)
 
     if depth <= 0:
         return _quiescence_score(
@@ -340,7 +406,15 @@ def _alpha_beta_score(
 
         return best_score
 
-    best_score = _SEARCH_INFINITY
+    best_score = (
+        0
+        if _opponent_can_claim_threefold(board, perspective_color)
+        else _SEARCH_INFINITY
+    )
+    beta = min(beta, best_score)
+
+    if alpha >= beta:
+        return best_score
 
     for move in moves:
         board.push(move)
@@ -374,19 +448,28 @@ def _quiescence_score(
 ) -> int:
     """Extend leaf evaluation through bounded tactical continuations."""
     if board.is_game_over():
-        return _position_score(board, perspective_color)
+        return _search_position_score(board, perspective_color)
 
     stand_pat = _position_score(board, perspective_color)
     in_check = board.is_check()
+    opponent_can_claim_threefold = _opponent_can_claim_threefold(
+        board,
+        perspective_color,
+    )
+    claim_adjusted_stand_pat = (
+        min(stand_pat, 0)
+        if opponent_can_claim_threefold
+        else stand_pat
+    )
 
     if depth < 0:
-        return stand_pat
+        return claim_adjusted_stand_pat
 
     if in_check:
         candidate_moves = list(board.legal_moves)
     else:
         if depth <= 0:
-            return stand_pat
+            return claim_adjusted_stand_pat
 
         candidate_moves = [
             move
@@ -395,7 +478,7 @@ def _quiescence_score(
         ]
 
         if not candidate_moves:
-            return stand_pat
+            return claim_adjusted_stand_pat
 
     moves = _ordered_hard_moves(board, candidate_moves)
     maximizing = board.turn == perspective_color
@@ -433,11 +516,13 @@ def _quiescence_score(
 
     best_score = _SEARCH_INFINITY if in_check else stand_pat
 
-    if not in_check:
-        if best_score <= alpha:
-            return best_score
+    if opponent_can_claim_threefold:
+        best_score = min(best_score, 0)
 
-        beta = min(beta, best_score)
+    if best_score <= alpha:
+        return best_score
+
+    beta = min(beta, best_score)
 
     for move in moves:
         board.push(move)
@@ -584,23 +669,33 @@ def _intermediate_move_score(
         if board.is_checkmate():
             return 100_000 + move_adjustment
 
+        if _is_automatic_repetition_draw(board):
+            return 0
+
         if board.is_game_over():
             return _position_score(board, perspective_color) + move_adjustment
 
-        opponent_reply_scores = []
+        opponent_reply_scores = (
+            [0]
+            if board.is_repetition(3)
+            else []
+        )
 
         for opponent_move in board.legal_moves:
             board.push(opponent_move)
 
             try:
                 opponent_reply_scores.append(
-                    _position_score(board, perspective_color)
+                    _search_position_score(board, perspective_color)
                 )
             finally:
                 board.pop()
 
         if not opponent_reply_scores:
-            reply_score = _position_score(board, perspective_color)
+            reply_score = _search_position_score(
+                board,
+                perspective_color,
+            )
         else:
             reply_score = min(opponent_reply_scores)
 

@@ -1,8 +1,10 @@
 # Shared game storage setup
 
-Status: setup note for the `v0.6.0` manual-refresh shared game storage prototype.
+Status: current setup note for Boardstep shared-game storage.
 
-Boardstep uses local Streamlit session state for local practice. The shared game prototype uses external storage so that two browser sessions can load and update the same game by ID.
+The initial Supabase-backed manual-refresh prototype was introduced in `v0.6.0`. Optional polling-based auto-refresh was added in `v0.13.0`, shared-side assignment and turn ownership in `v0.14.0`, and history-aware repetition draw state was added in `v0.16.0`.
+
+Boardstep uses local Streamlit session state for local and computer practice. Shared games use external storage so that multiple browser sessions can load and update the same game by ID.
 
 The current storage target is Supabase/PostgreSQL.
 
@@ -14,12 +16,15 @@ Recommended table name:
 shared_games
 ```
 
-Recommended first columns:
+Current columns:
 
 ```text
 game_id text primary key
 fen text not null
+game_start_fen text
+move_uci_history jsonb
 move_history jsonb not null
+claimed_draw_reason text
 creator_side text not null default 'white'
 created_at timestamptz not null
 updated_at timestamptz not null
@@ -32,15 +37,21 @@ For databases created before the creator-side field was introduced, run the SQL 
 
 Existing rows default to White. New games explicitly store the side assigned to the creator.
 
-The `last_move_number` column is used as a simple stale-state check. Before saving a move, the app can compare the stored move number with the move number the user loaded. If they do not match, the app should avoid silently overwriting newer game state.
+The `last_move_number` column is used as a stale-state check. Shared writes also require that no draw claim has already been stored, preventing a stale move or duplicate claim from overwriting a completed game.
+
+## Repetition-state migration
+
+For databases created before repetition draw handling was introduced, run the SQL in `docs/sql/add-shared-game-repetition-state.sql`.
+
+The migration adds the game-start FEN, canonical UCI move history, and optional claimed-draw reason. Existing rows remain valid as legacy shared games and begin a new known-history baseline from their current FEN.
 
 ## Runtime behavior
 
-After a shared game is created or loaded, later legal moves are saved back to shared storage.
+After a shared game is created or loaded, later legal moves and claimed game results are saved back to shared storage.
 
-Other browser sessions do not update in real time. They use the manual refresh control to load the latest saved position for the shared game ID.
+Other browser sessions can use the manual refresh control or optional polling-based auto-refresh to load the latest saved state. This is not push-based real-time multiplayer.
 
-The `last_move_number` value is used as a simple stale-state guard. If the stored game changed before a move is saved, the app should show a conflict message and ask the user to refresh rather than silently overwriting newer state.
+Shared updates use the stored move number and claimed-draw state as optimistic-concurrency guards. If the saved game changed before an update is written, the app shows a conflict message and asks the user to refresh rather than silently overwriting newer state.
 
 ## Local secrets
 
@@ -65,7 +76,7 @@ For Streamlit Community Cloud, the same values should be configured in the app s
 
 ## Access model
 
-The first prototype uses a simple access model:
+The current prototype uses a simple access model:
 
 * games are loaded by game ID
 * there are no user accounts yet
@@ -91,4 +102,4 @@ Credentials must not be committed.
 
 Elevated Supabase keys should not be exposed in public code or browser-facing logic. Database permissions and Row Level Security should be configured deliberately for the prototype.
 
-The shared-game model remains a small manual-refresh prototype, not real-time multiplayer.
+The shared-game model remains a small polling-based prototype, not real-time multiplayer.
