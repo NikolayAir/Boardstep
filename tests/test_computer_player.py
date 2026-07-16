@@ -42,13 +42,17 @@ def test_beginner_can_be_made_deterministic_with_injected_rng():
     assert first_move == second_move
 
 
-def test_computer_move_returns_none_for_finished_game():
+@pytest.mark.parametrize(
+    "level",
+    ("beginner", "easy", "basic", "intermediate", "hard"),
+)
+def test_computer_move_returns_none_for_finished_game(level: str):
     fools_mate_fen = (
         "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR "
         "w KQkq - 1 3"
     )
 
-    assert choose_computer_move(fools_mate_fen, "beginner") is None
+    assert choose_computer_move(fools_mate_fen, level) is None
 
 
 def test_easy_prefers_immediate_checkmate():
