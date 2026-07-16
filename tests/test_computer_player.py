@@ -9,9 +9,10 @@ from boardstep.computer_player import (
     _is_endgame,
     _ordered_hard_moves,
     _position_score,
+    _quiescence_score,
     choose_computer_move,
 )
-from boardstep.game import STARTING_FEN
+from boardstep.game import STARTING_FEN, board_from_uci_history
 
 
 def test_beginner_returns_legal_move_from_starting_position():
@@ -306,6 +307,144 @@ def test_hard_is_deterministic_for_equal_input():
     )
 
     assert first_move == second_move
+
+
+@pytest.mark.parametrize(
+    "level",
+    ("beginner", "easy", "basic", "intermediate", "hard"),
+)
+def test_computer_move_returns_none_for_automatic_fivefold_repetition(
+    level: str,
+):
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    move_uci_history = repetition_cycle * 4
+    board = board_from_uci_history(
+        STARTING_FEN,
+        move_uci_history,
+    )
+
+    assert choose_computer_move(
+        board.fen(),
+        level,
+        game_start_fen=STARTING_FEN,
+        move_uci_history=move_uci_history,
+    ) is None
+
+
+def test_computer_move_rejects_history_that_does_not_match_current_fen():
+    with pytest.raises(ValueError, match="does not reconstruct"):
+        choose_computer_move(
+            STARTING_FEN,
+            "beginner",
+            game_start_fen=STARTING_FEN,
+            move_uci_history=("e2e4",),
+        )
+
+
+def test_computer_move_requires_complete_history_arguments():
+    with pytest.raises(ValueError, match="provided together"):
+        choose_computer_move(
+            STARTING_FEN,
+            "beginner",
+            game_start_fen=STARTING_FEN,
+        )
+
+
+def test_hard_search_allows_opponent_to_claim_threefold_draw():
+    game_start_fen = (
+        "6nk/8/8/8/8/8/Q7/KN6 b - - 0 1"
+    )
+    repetition_cycle = (
+        "g8f6",
+        "b1c3",
+        "f6g8",
+        "c3b1",
+    )
+    board = board_from_uci_history(
+        game_start_fen,
+        repetition_cycle * 2,
+    )
+
+    assert board.turn == chess.BLACK
+    assert board.is_repetition(3)
+    assert _position_score(board, chess.WHITE) > 0
+
+    score = _alpha_beta_score(
+        board,
+        depth=0,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == 0
+
+
+def test_hard_search_does_not_force_computer_to_claim_threefold_draw():
+    game_start_fen = (
+        "6nk/8/8/8/8/8/Q7/KN6 w - - 0 1"
+    )
+    repetition_cycle = (
+        "b1c3",
+        "g8f6",
+        "c3b1",
+        "f6g8",
+    )
+    board = board_from_uci_history(
+        game_start_fen,
+        repetition_cycle * 2,
+    )
+
+    assert board.turn == chess.WHITE
+    assert board.is_repetition(3)
+
+    score = _alpha_beta_score(
+        board,
+        depth=0,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score > 0
+
+
+@pytest.mark.parametrize("depth", (0, -1))
+def test_hard_quiescence_allows_threefold_claim_at_depth_boundary(
+    depth: int,
+):
+    game_start_fen = (
+        "6nk/8/8/8/8/8/Q7/KN6 b - - 0 1"
+    )
+    repetition_cycle = (
+        "g8f6",
+        "b1c3",
+        "f6g8",
+        "c3b1",
+    )
+    board = board_from_uci_history(
+        game_start_fen,
+        repetition_cycle * 2,
+    )
+
+    assert board.turn == chess.BLACK
+    assert board.is_repetition(3)
+    assert _position_score(board, chess.WHITE) > 0
+
+    score = _quiescence_score(
+        board,
+        depth=depth,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == 0
 
 
 def test_invalid_computer_level_is_rejected():

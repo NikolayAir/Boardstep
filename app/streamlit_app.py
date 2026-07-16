@@ -469,6 +469,8 @@ def apply_computer_reply_if_needed() -> None:
     computer_move = choose_computer_move(
         st.session_state.fen,
         st.session_state.computer_level,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
     )
 
     if computer_move is None:
