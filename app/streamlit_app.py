@@ -1,7 +1,6 @@
 import sys
-from pathlib import Path
-
 import time
+from pathlib import Path
 
 import streamlit as st
 
@@ -99,6 +98,15 @@ def initialize_game_state() -> None:
 
     if "move_history" not in st.session_state:
         st.session_state.move_history = []
+
+    if "game_start_fen" not in st.session_state:
+        st.session_state.game_start_fen = st.session_state.fen
+
+    if "move_uci_history" not in st.session_state:
+        st.session_state.move_uci_history = []
+
+    if "claimed_draw_reason" not in st.session_state:
+        st.session_state.claimed_draw_reason = None
 
     if "selected_square" not in st.session_state:
         st.session_state.selected_square = None
@@ -248,7 +256,10 @@ def is_computer_practice_turn() -> bool:
 def reset_game() -> None:
     """Reset the current chess game to the starting position."""
     st.session_state.fen = STARTING_FEN
+    st.session_state.game_start_fen = STARTING_FEN
+    st.session_state.move_uci_history = []
     st.session_state.move_history = []
+    st.session_state.claimed_draw_reason = None
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     clear_computer_practice_session()
@@ -276,7 +287,10 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     state = create_shared_game_state(
         st.session_state.shared_game_id,
         fen=st.session_state.fen,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
         move_history=st.session_state.move_history,
+        claimed_draw_reason=st.session_state.claimed_draw_reason,
         creator_side=st.session_state.shared_game_creator_side,
     )
 
@@ -306,7 +320,7 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
 
 def apply_legal_move_to_session(move_text: str) -> str:
     """Apply a legal move to the current session and return SAN notation."""
-    recorded_move_text = move_text.strip()
+    recorded_move_text = move_text.strip().lower()
 
     try:
         new_fen, san = apply_uci_move(st.session_state.fen, recorded_move_text)
@@ -319,6 +333,7 @@ def apply_legal_move_to_session(move_text: str) -> str:
         recorded_move_text = promoted_move_text
 
     st.session_state.fen = new_fen
+    st.session_state.move_uci_history.append(recorded_move_text)
     move_number = len(st.session_state.move_history) + 1
     st.session_state.move_history.append(
         f"{move_number}. {recorded_move_text} ({san})"
@@ -376,8 +391,13 @@ def apply_move_text(move_text: str) -> None:
 
 def load_fen_position(fen_text: str) -> None:
     """Load a validated FEN position into the current session."""
-    st.session_state.fen = validate_fen_position(fen_text)
+    loaded_fen = validate_fen_position(fen_text)
+
+    st.session_state.fen = loaded_fen
+    st.session_state.game_start_fen = loaded_fen
+    st.session_state.move_uci_history = []
     st.session_state.move_history = []
+    st.session_state.claimed_draw_reason = None
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     clear_computer_practice_session()
@@ -430,13 +450,18 @@ def apply_shared_game_state_to_session(
 ) -> None:
     """Load shared game state into the current Streamlit session."""
     st.session_state.fen = state.fen
+    st.session_state.game_start_fen = state.game_start_fen
+    st.session_state.move_uci_history = list(state.move_uci_history)
     st.session_state.move_history = list(state.move_history)
+    st.session_state.claimed_draw_reason = state.claimed_draw_reason
+
     st.session_state.selected_square = None
     st.session_state.click_move_error = None
     st.session_state.shared_game_id = state.game_id
     st.session_state.shared_game_creator_side = state.creator_side
     st.session_state.shared_game_last_move_number = state.last_move_number
     st.session_state.shared_game_status = status_message
+
     mark_shared_game_synced()
     clear_computer_practice_session()
 
@@ -451,7 +476,10 @@ def create_shared_game_from_current_session(
     state = create_shared_game_state(
         game_id,
         fen=st.session_state.fen,
+        game_start_fen=st.session_state.game_start_fen,
+        move_uci_history=st.session_state.move_uci_history,
         move_history=st.session_state.move_history,
+        claimed_draw_reason=st.session_state.claimed_draw_reason,
         creator_side=creator_side,
     )
 
