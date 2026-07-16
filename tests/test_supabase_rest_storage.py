@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 
 import pytest
 
-from boardstep.shared_game import create_shared_game_state
+from boardstep.game import STARTING_FEN, apply_uci_move
+from boardstep.shared_game import SharedGameState, create_shared_game_state
+from boardstep.shared_game_storage import shared_game_state_to_record
 from boardstep.supabase_rest_storage import (
     SUPABASE_KEY_SECRET,
     SUPABASE_URL_SECRET,
@@ -12,6 +14,7 @@ from boardstep.supabase_rest_storage import (
     create_supabase_rest_config,
     load_shared_game,
     save_shared_game_after_move,
+    save_shared_game_draw_claim,
 )
 
 
@@ -187,6 +190,7 @@ def test_save_shared_game_after_move_patches_with_stale_state_guard() -> None:
     assert kwargs["params"] == {
         "game_id": "eq.game-003",
         "last_move_number": "eq.0",
+        "claimed_draw_reason": "is.null",
     }
     assert kwargs["json"]["creator_side"] == "white"
 
@@ -214,6 +218,79 @@ def test_save_shared_game_after_move_rejects_negative_expected_move_number() -> 
             expected_last_move_number=-1,
             session=FakeSession(FakeResponse([])),
         )
+
+
+def test_save_shared_game_draw_claim_uses_unclaimed_state_guard() -> None:
+    state = _threefold_claim_state("game-draw-claim")
+    session = FakeSession(
+        FakeResponse([shared_game_state_to_record(state)])
+    )
+
+    saved_state = save_shared_game_draw_claim(
+        _config(),
+        state,
+        expected_last_move_number=state.last_move_number,
+        session=session,
+    )
+
+    assert saved_state.claimed_draw_reason == "threefold_repetition"
+
+    method, _, kwargs = session.calls[0]
+    assert method == "patch"
+    assert kwargs["params"] == {
+        "game_id": "eq.game-draw-claim",
+        "last_move_number": f"eq.{state.last_move_number}",
+        "claimed_draw_reason": "is.null",
+    }
+    assert kwargs["json"]["claimed_draw_reason"] == "threefold_repetition"
+
+
+def test_save_shared_game_draw_claim_raises_when_record_changed() -> None:
+    state = _threefold_claim_state("game-draw-conflict")
+    session = FakeSession(FakeResponse([]))
+
+    with pytest.raises(SharedGameStorageConflictError, match="changed"):
+        save_shared_game_draw_claim(
+            _config(),
+            state,
+            expected_last_move_number=state.last_move_number,
+            session=session,
+        )
+
+
+def test_save_shared_game_draw_claim_requires_claimed_state() -> None:
+    state = create_shared_game_state("game-without-claim")
+
+    with pytest.raises(ValueError, match="threefold-repetition"):
+        save_shared_game_draw_claim(
+            _config(),
+            state,
+            expected_last_move_number=0,
+            session=FakeSession(FakeResponse([])),
+        )
+
+
+def _threefold_claim_state(game_id: str) -> SharedGameState:
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    move_uci_history = repetition_cycle * 2
+    fen = STARTING_FEN
+
+    for move_text in move_uci_history:
+        fen, _ = apply_uci_move(fen, move_text)
+
+    return create_shared_game_state(
+        game_id,
+        fen=fen,
+        game_start_fen=STARTING_FEN,
+        move_uci_history=move_uci_history,
+        move_history=move_uci_history,
+        claimed_draw_reason="threefold_repetition",
+    )
 
 
 def _config() -> SupabaseRestConfig:

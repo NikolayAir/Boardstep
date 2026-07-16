@@ -121,7 +121,46 @@ def save_shared_game_after_move(
     expected_last_move_number: int,
     session: Any | None = None,
 ) -> SharedGameState:
-    """Save updated game state if the stored move number is still expected."""
+    """Save a move if the stored game is unchanged and has no claimed draw."""
+
+    return _save_shared_game_state_if_unclaimed(
+        config,
+        state,
+        expected_last_move_number=expected_last_move_number,
+        session=session,
+    )
+
+
+def save_shared_game_draw_claim(
+    config: SupabaseRestConfig,
+    state: SharedGameState,
+    *,
+    expected_last_move_number: int,
+    session: Any | None = None,
+) -> SharedGameState:
+    """Save a threefold draw claim if the stored game is still unclaimed."""
+
+    if state.claimed_draw_reason != "threefold_repetition":
+        raise ValueError(
+            "state must contain a threefold-repetition draw claim"
+        )
+
+    return _save_shared_game_state_if_unclaimed(
+        config,
+        state,
+        expected_last_move_number=expected_last_move_number,
+        session=session,
+    )
+
+
+def _save_shared_game_state_if_unclaimed(
+    config: SupabaseRestConfig,
+    state: SharedGameState,
+    *,
+    expected_last_move_number: int,
+    session: Any | None,
+) -> SharedGameState:
+    """Patch a shared game guarded by its move number and unclaimed state."""
 
     if expected_last_move_number < 0:
         raise ValueError("expected_last_move_number must not be negative")
@@ -132,6 +171,7 @@ def save_shared_game_after_move(
         params={
             "game_id": f"eq.{state.game_id}",
             "last_move_number": f"eq.{expected_last_move_number}",
+            "claimed_draw_reason": "is.null",
         },
         json=shared_game_state_to_record(state),
         timeout=config.timeout_seconds,
