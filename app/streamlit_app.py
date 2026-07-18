@@ -166,6 +166,9 @@ def initialize_game_state() -> None:
     if "last_computer_move" not in st.session_state:
         st.session_state.last_computer_move = None
 
+    if "computer_move_pending" not in st.session_state:
+        st.session_state.computer_move_pending = False
+
 
 def clear_shared_game_session() -> None:
     """Clear shared-game session metadata."""
@@ -244,6 +247,7 @@ def apply_pending_shared_game_side_assignment() -> None:
 def clear_computer_practice_session() -> None:
     """Clear computer-practice transient metadata."""
     st.session_state.last_computer_move = None
+    st.session_state.computer_move_pending = False
 
 
 def current_game_board() -> chess.Board:
@@ -462,8 +466,12 @@ def apply_legal_move_to_session(move_text: str) -> str:
 
 
 def apply_computer_reply_if_needed() -> None:
-    """Apply a pending local computer move when it is the computer's turn."""
+    """Apply one explicitly pending local computer move."""
+    if not st.session_state.computer_move_pending:
+        return
+
     if not is_computer_practice_turn():
+        st.session_state.computer_move_pending = False
         return
 
     computer_move = choose_computer_move(
@@ -474,10 +482,12 @@ def apply_computer_reply_if_needed() -> None:
     )
 
     if computer_move is None:
+        st.session_state.computer_move_pending = False
         return
 
     computer_san = apply_legal_move_to_session(computer_move)
     st.session_state.last_computer_move = f"{computer_move} ({computer_san})"
+    st.session_state.computer_move_pending = False
 
 
 def apply_move_text(move_text: str) -> None:
@@ -986,9 +996,7 @@ def main() -> None:
     render_app_header()
     render_game_setup()
 
-    if is_computer_practice_turn():
-        with st.spinner("Computer is thinking..."):
-            apply_computer_reply_if_needed()
+    st.session_state.computer_move_pending = is_computer_practice_turn()
 
     board_col, game_col = st.columns([1.65, 1], gap="large")
 
@@ -1020,7 +1028,12 @@ def main() -> None:
 
             rows = board_rows(st.session_state.fen, orientation=board_orientation)
             files = board_files(board_orientation)
-            render_board_area(rows, files, apply_move_text)
+            render_board_area(
+                rows,
+                files,
+                apply_move_text,
+                disabled=st.session_state.computer_move_pending,
+            )
 
     with game_col:
         with st.container(border=True):
@@ -1028,7 +1041,11 @@ def main() -> None:
 
             render_game_panel(
                 fen=st.session_state.fen,
-                status_text=current_game_status(),
+                status_text=(
+                    "Computer thinking…"
+                    if st.session_state.computer_move_pending
+                    else current_game_status()
+                ),
                 can_claim_threefold=current_game_can_claim_threefold(),
                 claim_threefold_draw=claim_threefold_draw,
                 move_history=st.session_state.move_history,
@@ -1040,7 +1057,12 @@ def main() -> None:
                 computer_level=st.session_state.computer_level,
                 player_side=st.session_state.player_side,
                 last_computer_move=st.session_state.last_computer_move,
+                computer_move_pending=st.session_state.computer_move_pending,
             )
+
+    if st.session_state.computer_move_pending:
+        apply_computer_reply_if_needed()
+        st.rerun()
 
 
 if __name__ == "__main__":

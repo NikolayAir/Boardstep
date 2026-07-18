@@ -7,6 +7,7 @@ export default function(component) {
     const root = parentElement.querySelector("#boardstep-clickable-board");
 
     const files = data?.files || ["a", "b", "c", "d", "e", "f", "g", "h"];
+    const disabled = Boolean(data?.disabled);
     // Map outline white-piece glyphs to filled glyphs so CSS color styling is consistent.
     const whiteToFilledSymbol = {
         "♔": "♚",
@@ -34,6 +35,12 @@ export default function(component) {
         button.className = `boardstep-square ${isLight ? "boardstep-light" : "boardstep-dark"}`;
         button.setAttribute("aria-label", `Select ${squareName}`);
         button.dataset.square = squareName;
+        button.disabled = disabled;
+        button.setAttribute("aria-disabled", String(disabled));
+
+        if (disabled) {
+            button.classList.add("boardstep-disabled");
+        }
 
         if (data?.selectedSquare === squareName) {
             button.classList.add("boardstep-selected");
@@ -61,7 +68,9 @@ export default function(component) {
         }
 
         button.onclick = () => {
-            setTriggerValue("square", squareName);
+            if (!disabled) {
+                setTriggerValue("square", squareName);
+            }
         };
 
         return button;
