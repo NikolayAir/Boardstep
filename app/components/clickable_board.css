@@ -34,9 +34,15 @@
     cursor: pointer;
 }
 
-.boardstep-square:hover {
+.boardstep-square:hover:not(:disabled) {
     outline: 3px solid rgba(255, 255, 255, 0.6);
     outline-offset: -3px;
+}
+
+.boardstep-square:disabled,
+.boardstep-disabled {
+    cursor: wait;
+    opacity: 1;
 }
 
 .boardstep-selected {

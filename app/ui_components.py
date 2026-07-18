@@ -58,6 +58,8 @@ def render_click_move_controls(
     rows: list[dict[str, str]],
     files: tuple[str, ...],
     apply_move: ApplyMove,
+    *,
+    disabled: bool = False,
 ) -> None:
     """Render click-move feedback and optional coordinate-practice controls."""
     selected_square = st.session_state.selected_square
@@ -112,6 +114,7 @@ def render_click_move_controls(
                     label,
                     key=f"square-{square_name}",
                     use_container_width=True,
+                    disabled=disabled,
                 ):
                     handle_square_click(square_name, apply_move)
                     st.rerun()
@@ -121,6 +124,8 @@ def render_clickable_board(
     rows: list[dict[str, str]],
     files: tuple[str, ...],
     apply_move: ApplyMove,
+    *,
+    disabled: bool = False,
 ) -> None:
     """Render the clickable main chessboard."""
     selected_square = st.session_state.selected_square
@@ -136,6 +141,7 @@ def render_clickable_board(
             "files": list(files),
             "selectedSquare": selected_square,
             "legalTargets": legal_targets,
+            "disabled": disabled,
         },
         key="main_clickable_board",
         height=590,
@@ -144,7 +150,7 @@ def render_clickable_board(
 
     clicked_square = result.square
 
-    if clicked_square:
+    if clicked_square and not disabled:
         handle_square_click(clicked_square, apply_move)
         st.rerun()
 
@@ -153,11 +159,23 @@ def render_board_area(
     rows: list[dict[str, str]],
     files: tuple[str, ...],
     apply_move: ApplyMove,
+    *,
+    disabled: bool = False,
 ) -> None:
     """Render the visual board and playable square controls."""
-    render_clickable_board(rows, files, apply_move)
+    render_clickable_board(
+        rows,
+        files,
+        apply_move,
+        disabled=disabled,
+    )
 
-    render_click_move_controls(rows, files, apply_move)
+    render_click_move_controls(
+        rows,
+        files,
+        apply_move,
+        disabled=disabled,
+    )
 
 
 def render_move_history(move_history: list[str]) -> None:
@@ -171,6 +189,8 @@ def render_move_history(move_history: list[str]) -> None:
 
 def render_typed_move_form(
     apply_move: ApplyMove,
+    *,
+    disabled: bool = False,
 ) -> None:
     """Render optional typed move input."""
     with st.expander("Typed move input"):
@@ -178,13 +198,17 @@ def render_typed_move_form(
             move_text = st.text_input(
                 "Move",
                 placeholder="e2e4",
+                disabled=disabled,
                 help=(
                     "Type the start square and target square, for example e2e4 or g1f3. "
                     "For promotion, add the new piece, for example e7e8q."
                 ),
             )
             st.caption("Examples: e2e4, g1f3, b8c6, e7e8q for promotion.")
-            submitted = st.form_submit_button("Play move")
+            submitted = st.form_submit_button(
+                "Play move",
+                disabled=disabled,
+            )
 
         if submitted:
             try:
@@ -279,6 +303,7 @@ def render_game_panel(
     computer_level: str,
     player_side: str,
     last_computer_move: str | None,
+    computer_move_pending: bool = False,
 ) -> None:
     """Render game status, move history, typed input, and position tools."""
     st.subheader("Current game")
@@ -310,6 +335,9 @@ def render_game_panel(
             st.markdown(f"**Last computer move:** {last_computer_move}")
 
     render_move_history(move_history)
-    render_typed_move_form(apply_move)
+    render_typed_move_form(
+        apply_move,
+        disabled=computer_move_pending,
+    )
     render_position_tools(fen, render_fen_load_controls)
     render_game_actions(reset_game)
