@@ -11,6 +11,7 @@ from boardstep.game import (
     game_is_over,
     game_status,
     game_status_from_board,
+    latest_move_squares,
     legal_move_count,
     legal_target_squares,
     repetition_draw_state,
@@ -81,6 +82,25 @@ def test_build_uci_move_from_selected_squares():
 def test_build_uci_move_rejects_invalid_square():
     with pytest.raises(ValueError, match="valid source and target squares"):
         build_uci_move("e9", "e4")
+
+
+def test_latest_move_squares_returns_none_for_empty_history():
+    assert latest_move_squares([]) is None
+
+
+def test_latest_move_squares_returns_latest_source_and_target():
+    assert latest_move_squares(
+        ["e2e4", "e7e5", "g1f3"]
+    ) == ("g1", "f3")
+
+
+def test_latest_move_squares_handles_promotion_suffix():
+    assert latest_move_squares([" E7E8Q "]) == ("e7", "e8")
+
+
+def test_latest_move_squares_rejects_invalid_uci():
+    with pytest.raises(ValueError, match="latest move history entry"):
+        latest_move_squares(["not-a-move"])
 
 
 def test_legal_target_squares_returns_pawn_moves_from_starting_position():
