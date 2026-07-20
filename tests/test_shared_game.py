@@ -129,11 +129,17 @@ def test_shared_game_move_restriction_message_explains_wrong_side() -> None:
 def test_shared_game_turn_guidance_reports_current_role_state() -> None:
     black_to_move_fen, _ = apply_uci_move(STARTING_FEN, "e2e4")
 
-    assert shared_game_turn_guidance("white", STARTING_FEN) == "Your move."
-    assert shared_game_turn_guidance("black", STARTING_FEN) == "Waiting for White."
-    assert shared_game_turn_guidance("black", black_to_move_fen) == "Your move."
-    assert shared_game_turn_guidance("white", black_to_move_fen) == "Waiting for Black."
-    assert shared_game_turn_guidance("observer", STARTING_FEN) == "Observer mode."
+    assert shared_game_turn_guidance("white", STARTING_FEN) == "Your turn."
+    assert shared_game_turn_guidance("black", STARTING_FEN) == (
+        "Waiting for opponent — White to move."
+    )
+    assert shared_game_turn_guidance("black", black_to_move_fen) == "Your turn."
+    assert shared_game_turn_guidance("white", black_to_move_fen) == (
+        "Waiting for opponent — Black to move."
+    )
+    assert shared_game_turn_guidance("observer", STARTING_FEN) == (
+        "Observer mode — moves are disabled."
+    )
 
 
 def test_shared_game_state_update_detects_move_or_draw_changes() -> None:
