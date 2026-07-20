@@ -1,12 +1,17 @@
 /* Clickable board component styles. */
 
 .boardstep-clickable-board {
+    container-type: inline-size;
     display: grid;
-    grid-template-columns: 30px repeat(8, 64px);
+    grid-template-columns:
+        clamp(20px, 5.5%, 30px)
+        repeat(8, minmax(0, 1fr));
     justify-content: center;
-    align-items: center;
+    align-items: stretch;
     margin: 0.25rem auto 0.5rem auto;
-    width: fit-content;
+    width: 100%;
+    max-width: 544px;
+    box-sizing: border-box;
     background: #dbc7a4;
     border: 1px solid #8e6d4a;
     border-radius: 8px;
@@ -21,14 +26,17 @@
 }
 
 .boardstep-square {
-    width: 64px;
-    height: 64px;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    aspect-ratio: 1 / 1;
     border: 0;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 40px;
+    font-size: clamp(20px, 7.4cqw, 40px);
     line-height: 1;
     font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif;
     cursor: pointer;
@@ -85,15 +93,17 @@
     align-items: center;
     justify-content: center;
     font-size: 0.85rem;
+    font-size: clamp(0.65rem, 2.5cqw, 0.85rem);
     font-weight: 600;
     color: #4b3927;
     background: #dbc7a4;
 }
 
 .boardstep-rank-label {
-    height: 64px;
+    align-self: stretch;
 }
 
 .boardstep-file-label {
     height: 30px;
+    height: clamp(22px, 5.5cqw, 30px);
 }

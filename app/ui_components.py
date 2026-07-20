@@ -153,7 +153,8 @@ def render_clickable_board(
             "disabled": disabled,
         },
         key="main_clickable_board",
-        height=590,
+        width="stretch",
+        height="content",
         on_square_change=lambda: None,
     )
 
