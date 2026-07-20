@@ -158,6 +158,28 @@ def build_uci_move(source_square: str, target_square: str) -> str:
     return f"{source}{target}"
 
 
+def latest_move_squares(
+    move_uci_history: Sequence[str],
+) -> tuple[str, str] | None:
+    """Return the source and target squares of the latest canonical UCI move."""
+    if not move_uci_history:
+        return None
+
+    normalized_move = move_uci_history[-1].strip().lower()
+
+    try:
+        move = chess.Move.from_uci(normalized_move)
+    except ValueError as exc:
+        raise ValueError(
+            "The latest move history entry is not valid UCI."
+        ) from exc
+
+    return (
+        chess.square_name(move.from_square),
+        chess.square_name(move.to_square),
+    )
+
+
 def legal_target_squares(fen: str, source_square: str) -> list[str]:
     """Return legal destination squares for moves from a selected source square."""
     board = chess.Board(fen)

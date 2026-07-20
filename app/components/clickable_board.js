@@ -42,6 +42,13 @@ export default function(component) {
             button.classList.add("boardstep-disabled");
         }
 
+        if (
+            data?.lastMoveFrom === squareName
+            || data?.lastMoveTo === squareName
+        ) {
+            button.classList.add("boardstep-last-move");
+        }
+
         if (data?.selectedSquare === squareName) {
             button.classList.add("boardstep-selected");
         }
