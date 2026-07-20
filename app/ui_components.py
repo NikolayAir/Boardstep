@@ -313,7 +313,7 @@ def render_game_panel(
     computer_level: str,
     player_side: str,
     last_computer_move: str | None,
-    computer_move_pending: bool = False,
+    move_input_disabled: bool = False,
 ) -> None:
     """Render game status, move history, typed input, and position tools."""
     st.subheader("Current game")
@@ -347,7 +347,7 @@ def render_game_panel(
     render_move_history(move_history)
     render_typed_move_form(
         apply_move,
-        disabled=computer_move_pending,
+        disabled=move_input_disabled,
     )
     render_position_tools(fen, render_fen_load_controls)
     render_game_actions(reset_game)

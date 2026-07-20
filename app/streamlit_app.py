@@ -207,6 +207,20 @@ def shared_game_auto_refresh_is_paused() -> bool:
     )
 
 
+def current_move_input_is_disabled() -> bool:
+    """Return whether the current browser must not submit a move."""
+    if st.session_state.computer_move_pending:
+        return True
+
+    return (
+        bool(st.session_state.shared_game_id)
+        and not shared_game_role_can_move(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        )
+    )
+
+
 def apply_shared_game_role_change() -> None:
     """Apply local UI updates after changing the shared-game role."""
     st.session_state.selected_square = None
@@ -655,17 +669,19 @@ def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
         refreshed_state=refreshed_state,
     )
 
-    if has_update:
-        status_message = "Updated to the latest saved game state."
-    else:
-        status_message = "No new move or game result found yet."
+    if not has_update:
+        st.session_state.shared_game_status = (
+            "No new move or game result found yet."
+        )
+        mark_shared_game_synced()
+        return False
 
     apply_shared_game_state_to_session(
         refreshed_state,
-        status_message=status_message,
+        status_message="Updated to the latest saved game state.",
     )
 
-    return has_update
+    return True
 
 
 def render_shared_game_controls() -> None:
@@ -884,7 +900,7 @@ def render_shared_game_auto_refresh(config: SupabaseRestConfig | None) -> None:
     if refreshed_has_update:
         st.rerun()
 
-    st.caption("Waiting for opponent move...")
+    st.caption("Auto-refresh is checking for shared-game updates.")
 
 
 def render_shared_game_refresh_shortcut() -> None:
@@ -997,6 +1013,7 @@ def main() -> None:
     render_game_setup()
 
     st.session_state.computer_move_pending = is_computer_practice_turn()
+    move_input_disabled = current_move_input_is_disabled()
 
     board_col, game_col = st.columns([1.65, 1], gap="large")
 
@@ -1032,7 +1049,7 @@ def main() -> None:
                 rows,
                 files,
                 apply_move_text,
-                disabled=st.session_state.computer_move_pending,
+                disabled=move_input_disabled,
             )
 
     with game_col:
@@ -1057,7 +1074,7 @@ def main() -> None:
                 computer_level=st.session_state.computer_level,
                 player_side=st.session_state.player_side,
                 last_computer_move=st.session_state.last_computer_move,
-                computer_move_pending=st.session_state.computer_move_pending,
+                move_input_disabled=move_input_disabled,
             )
 
     if st.session_state.computer_move_pending:
