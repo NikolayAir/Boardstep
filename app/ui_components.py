@@ -7,6 +7,7 @@ import streamlit as st
 
 from boardstep.game import (
     build_uci_move,
+    latest_move_squares,
     legal_move_count,
     legal_target_squares,
 )
@@ -134,6 +135,12 @@ def render_clickable_board(
         if selected_square
         else []
     )
+    latest_move = latest_move_squares(
+        st.session_state.move_uci_history
+    )
+    last_move_from, last_move_to = (
+        latest_move if latest_move is not None else (None, None)
+    )
 
     result = clickable_board_component(
         data={
@@ -141,6 +148,8 @@ def render_clickable_board(
             "files": list(files),
             "selectedSquare": selected_square,
             "legalTargets": legal_targets,
+            "lastMoveFrom": last_move_from,
+            "lastMoveTo": last_move_to,
             "disabled": disabled,
         },
         key="main_clickable_board",

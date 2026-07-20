@@ -45,6 +45,11 @@
     opacity: 1;
 }
 
+.boardstep-last-move {
+    outline: 3px solid rgba(244, 184, 32, 0.9);
+    outline-offset: -3px;
+}
+
 .boardstep-selected {
     outline: 3px solid #2f80ed;
     outline-offset: -3px;
