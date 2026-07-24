@@ -103,14 +103,14 @@ def shared_game_turn_guidance(role: str, fen: str) -> str:
     normalized_role = normalize_shared_game_role(role)
 
     if normalized_role == "observer":
-        return "Observer mode."
+        return "Observer mode — moves are disabled."
 
     current_side = side_to_move(fen)
 
     if normalized_role == current_side.lower():
-        return "Your move."
+        return "Your turn."
 
-    return f"Waiting for {current_side}."
+    return f"Waiting for opponent — {current_side} to move."
 
 
 @dataclass(frozen=True)
