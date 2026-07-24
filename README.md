@@ -2,7 +2,7 @@
 
 Boardstep is a browser-based chess practice app built with Python and Streamlit.
 
-It currently lets you practice legal chess moves on an interactive board, play local practice games against a custom rule-based computer opponent, load positions from FEN, and follow the current position in a simple web interface.
+It currently lets you practice legal chess moves on a responsive interactive board, see the latest completed move, play local games against a custom rule-based computer opponent, load positions from FEN, and follow shared games with clear turn feedback.
 
 Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
@@ -43,6 +43,8 @@ Local practice:
 * practice legal chess moves on an interactive board
 * select a source square and target square directly on the main board
 * see legal target squares after selecting a piece
+* highlight the origin and destination squares of the latest completed move
+* scale the board to the available browser width while preserving square proportions
 * switch the local board orientation between White-at-bottom and Black-at-bottom
 * use coordinate practice controls or typed UCI moves as fallback input
 * view move history
@@ -66,6 +68,8 @@ Computer practice:
 * let Intermediate and Hard account for claimable threefold outcomes during move evaluation
 * claim an available threefold draw on the human player's turn
 * see the selected practice level and last computer move in the game panel
+* keep the board visible and show `Computer thinking…` while a reply is calculated
+* disable move input while the computer turn is pending
 * automatically reset the local computer-practice game when changing side or level
 * use simple four-character promotion input that defaults to queen promotion when legal
 
@@ -75,7 +79,8 @@ Shared game prototype:
 * choose White, Black, or Random when creating a shared game
 * assign the opposite color to another browser session that loads the game ID
 * play only as the locally assigned color or switch to Observer mode
-* see turn guidance and prevent moves that do not match the selected role
+* distinguish `Your turn`, waiting, and read-only Observer states
+* disable the board and typed move input when the current browser cannot move
 * align board orientation with the assigned playing color
 * load a shared game by ID in another browser session
 * see whether the app is in local practice mode or shared game mode
@@ -87,6 +92,8 @@ Shared game prototype:
 * end the shared game automatically after fivefold repetition
 * manually refresh a shared game to load the latest saved position
 * enable optional auto-refresh to check for the latest saved position
+* preserve local move selection when polling finds no newer saved state
+* apply a refreshed position only when a move or game-result update is detected
 * see the latest local sync time
 * pause auto-refresh while choosing a move
 * leave shared game mode without deleting the saved shared game
@@ -103,9 +110,9 @@ FEN describes the current position but does not contain its prior move history. 
 
 Boardstep includes a shared game flow backed by external storage, with auto-refresh for convenient syncing and manual refresh as a fallback.
 
-One browser session creates a shared game ID and chooses White, Black, or Random. Another browser session that loads the same ID is assigned the opposite color. Board orientation, move permissions, and turn guidance follow the local assignment. Either session can switch to Observer mode to watch without making moves.
+One browser session creates a shared game ID and chooses White, Black, or Random. Another browser session that loads the same ID is assigned the opposite color. Board orientation, move permissions, and explicit turn guidance follow the local assignment. Move controls are disabled for the waiting player and in Observer mode.
 
-After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position.
+After a move is played, it is saved to storage. The other session can use `Refresh shared game` or enable optional auto-refresh to check for the latest saved position. Polling that finds no update preserves the current local interaction state.
 
 Threefold draw claims are also saved and become visible to the other session after manual or automatic refresh. Fivefold repetition ends the game automatically without a separate claim.
 
@@ -133,6 +140,7 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Version history
 
+* `v0.17.0` — responsive and clearer play experience. Scales the board to the available width, highlights the latest move, keeps the board visible while the computer is thinking, clarifies shared-game turn and Observer states, disables unavailable move input, and preserves local interaction when shared polling finds no update.
 * `v0.16.0` — history-aware repetition draws. Preserves the move history required for repetition detection, adds claimable threefold and automatic fivefold draws across local, computer, and shared games, synchronizes shared draw claims, detects automatic repetition endings at every computer level, and lets Intermediate and Hard account for claimable threefold draws during move evaluation.
 * `v0.15.0` — Hard computer-practice level. Adds bounded alpha-beta search with limited tactical continuation analysis, exposes Hard in the practice UI, recovers pending computer turns more reliably, and refines endgame classification without relying on an external chess engine.
 * `v0.14.0` — shared game side assignment and turn guidance. Lets creators choose White, Black, or Random, assigns the opposite color to joined browser sessions, adds Observer mode and side-based move restrictions, persists creator-side data with backward-compatible storage handling, and improves shared-mode and auto-refresh behavior.
@@ -152,7 +160,6 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 
 ## Possible next steps
 
-* make the board and game layout responsive across mobile, tablet, and desktop screens, keeping the full board visible without horizontal scrolling
 * add optional pawn promotion choice while keeping automatic queen promotion as the default
 * add shareable game links and a clearer copy-and-join flow
 * add optional player names and clearer joining guidance
