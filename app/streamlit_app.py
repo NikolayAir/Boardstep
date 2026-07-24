@@ -918,7 +918,10 @@ def render_shared_game_refresh_shortcut() -> None:
         st.session_state.fen,
     )
 
-    if turn_guidance == "Your move.":
+    if shared_game_role_can_move(
+        st.session_state.shared_game_role,
+        st.session_state.fen,
+    ):
         st.success(turn_guidance)
     else:
         st.info(turn_guidance)
