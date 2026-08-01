@@ -4,7 +4,9 @@ Boardstep is a browser-based chess practice app built with Python and Streamlit.
 
 It currently lets you practice legal chess moves on a responsive interactive board, see the latest completed move, play local games against a custom rule-based computer opponent, load positions from FEN, and follow shared games with clear turn feedback.
 
-Chess rules, move validation, and computer move selection remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
+At the domain layer, Boardstep can also validate complete game records, serialize them deterministically as JSON or standards-compatible PGN, and derive concise game summaries.
+
+Chess rules, move validation, computer move selection, and game-record processing remain in Python. The clickable board uses a lightweight custom JavaScript component with separate HTML and CSS assets.
 
 It also includes a shared game prototype. When creating a game, you can choose White, Black, or Random. Another browser session that loads the game ID is assigned the opposite color. Each session can play its assigned side or switch to Observer mode, then use auto-refresh for convenient syncing or refresh manually as a fallback.
 
@@ -28,6 +30,11 @@ flowchart LR
     Rules --> Position["Updated FEN and move history"]
     Position --> UI
 
+    State -. "validated record" .-> Record["Validated game record"]
+    Record --> JSON["Deterministic JSON"]
+    Record --> PGN["Standards-compatible PGN"]
+    Record --> Summary["Concise game summary"]
+
     Mode -. "computer practice" .-> Computer["Rule-based Python move selector"]
     Computer -. "legal UCI move" .-> Rules
 
@@ -35,6 +42,8 @@ flowchart LR
     UI -. "manual or auto refresh" .-> Storage
     Storage -. "loaded shared state" .-> State
 ```
+
+The storage-independent game-record layer is split across four focused modules. `boardstep/game_record.py` validates canonical UCI move histories and derives SAN history, final FEN, results, and termination metadata. `boardstep/game_record_json.py`, `boardstep/game_record_pgn.py`, and `boardstep/game_record_summary.py` provide deterministic JSON serialization, standards-compatible PGN serialization, and concise immutable summaries. These modules do not depend on Streamlit or shared-game storage.
 
 ## Current features
 
@@ -98,6 +107,19 @@ Shared game prototype:
 * pause auto-refresh while choosing a move
 * leave shared game mode without deleting the saved shared game
 
+Validated game records:
+
+* create immutable, storage-independent records from a starting FEN and canonical UCI move history
+* replay and validate every recorded move
+* derive SAN move history, final FEN, game result, termination reason, and an optional claimed-draw reason
+* serialize records deterministically as structured JSON data or formatted JSON text
+* serialize records as standards-compatible PGN with result metadata
+* include `FEN` and `SetUp` PGN headers for non-standard starting positions
+* preserve custom side-to-move and fullmove-number metadata in PGN output
+* derive concise summaries with outcome, individual move count, latest SAN move, starting-position type, and termination-specific text
+
+These capabilities currently exist as tested domain-layer APIs. The Streamlit app does not yet expose JSON or PGN download controls or a game-summary panel.
+
 ## Shareable positions
 
 Boardstep shows the current position as FEN, a compact text code for a chess position.
@@ -137,9 +159,11 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * Multiple browser sessions can load the same game ID and receive the same joining color.
 * There are no accounts, private invites, clocks, ratings, chat, external chess-engine integration, Elo calibration, or AI coach.
 * The computer opponent remains a lightweight rule-based practice helper, not an engine-strength opponent.
+* JSON and PGN serialization and concise summaries are implemented as domain-layer APIs but are not yet exposed through Streamlit download or summary controls.
 
 ## Version history
 
+* `v0.18.0` — validated game records and portable output. Adds immutable, storage-independent records that validate canonical UCI history and derive SAN, final FEN, result, and termination metadata; adds deterministic JSON, standards-compatible PGN, and concise summaries without changing existing play behavior.
 * `v0.17.0` — responsive and clearer play experience. Scales the board to the available width, highlights the latest move, keeps the board visible while the computer is thinking, clarifies shared-game turn and Observer states, disables unavailable move input, and preserves local interaction when shared polling finds no update.
 * `v0.16.0` — history-aware repetition draws. Preserves the move history required for repetition detection, adds claimable threefold and automatic fivefold draws across local, computer, and shared games, synchronizes shared draw claims, detects automatic repetition endings at every computer level, and lets Intermediate and Hard account for claimable threefold draws during move evaluation.
 * `v0.15.0` — Hard computer-practice level. Adds bounded alpha-beta search with limited tactical continuation analysis, exposes Hard in the practice UI, recovers pending computer turns more reliably, and refines endgame classification without relying on an external chess engine.
@@ -163,7 +187,7 @@ Boardstep is still a prototype, with a deliberately simple shared-game model.
 * add optional pawn promotion choice while keeping automatic queen promotion as the default
 * add shareable game links and a clearer copy-and-join flow
 * add optional player names and clearer joining guidance
-* add a lightweight game summary panel
+* expose concise game summaries and JSON/PGN downloads in the Streamlit UI
 * explore protected player seats or authentication for a later shared-game version
 
 ## Run locally
@@ -178,6 +202,8 @@ python -m streamlit run app/streamlit_app.py
 Shared-game storage is optional for local practice. To configure shared games, see `docs/shared-game-storage-setup.md`.
 
 ## Checks
+
+The current full suite contains 182 automated tests.
 
 ```zsh
 python -m compileall app boardstep tests
