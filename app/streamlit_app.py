@@ -130,6 +130,9 @@ def initialize_game_state() -> None:
     if "shared_game_last_move_number" not in st.session_state:
         st.session_state.shared_game_last_move_number = None
 
+    if "shared_game_recovery_required" not in st.session_state:
+        st.session_state.shared_game_recovery_required = False
+
     if "shared_game_status" not in st.session_state:
         st.session_state.shared_game_status = None
 
@@ -174,6 +177,7 @@ def clear_shared_game_session() -> None:
     """Clear shared-game session metadata."""
     st.session_state.shared_game_id = ""
     st.session_state.shared_game_last_move_number = None
+    st.session_state.shared_game_recovery_required = False
     st.session_state.shared_game_status = None
     st.session_state.shared_game_auto_refresh_enabled = False
     st.session_state.shared_game_last_synced_at = None
@@ -187,6 +191,12 @@ def mark_shared_game_synced() -> None:
     st.session_state.shared_game_last_synced_at = time.strftime("%H:%M:%S")
 
 
+def require_shared_game_recovery(status_message: str) -> None:
+    """Require authoritative shared state before shared play continues."""
+    st.session_state.shared_game_recovery_required = True
+    st.session_state.shared_game_status = status_message
+
+
 def leave_shared_game_session() -> None:
     """Return to local practice without deleting the saved shared game."""
     clear_shared_game_session()
@@ -198,6 +208,9 @@ def leave_shared_game_session() -> None:
 
 def shared_game_auto_refresh_is_paused() -> bool:
     """Return whether the current shared-game role is choosing a move."""
+    if st.session_state.shared_game_recovery_required:
+        return False
+
     if st.session_state.selected_square is None:
         return False
 
@@ -217,9 +230,12 @@ def current_move_input_is_disabled() -> bool:
 
     return (
         bool(st.session_state.shared_game_id)
-        and not shared_game_role_can_move(
-            st.session_state.shared_game_role,
-            st.session_state.fen,
+        and (
+            st.session_state.shared_game_recovery_required
+            or not shared_game_role_can_move(
+                st.session_state.shared_game_role,
+                st.session_state.fen,
+            )
         )
     )
 
@@ -297,6 +313,9 @@ def current_game_can_claim_threefold() -> bool:
         return False
 
     if st.session_state.shared_game_id:
+        if st.session_state.shared_game_recovery_required:
+            return False
+
         if not shared_game_role_can_move(
             st.session_state.shared_game_role,
             st.session_state.fen,
@@ -314,6 +333,15 @@ def current_game_can_claim_threefold() -> bool:
 
 def claim_threefold_draw() -> None:
     """Claim an available threefold-repetition draw."""
+    if (
+        st.session_state.shared_game_id
+        and st.session_state.shared_game_recovery_required
+    ):
+        raise ValueError(
+            "Shared-game recovery is required. "
+            "Refresh the shared game before claiming a draw."
+        )
+
     if not current_game_can_claim_threefold():
         raise ValueError(
             "A threefold-repetition draw cannot be claimed in the current state."
@@ -418,37 +446,36 @@ def save_current_shared_game_position(config: SupabaseRestConfig) -> None:
     expected_last_move_number = st.session_state.shared_game_last_move_number
 
     if expected_last_move_number is None:
-        st.session_state.shared_game_status = (
+        require_shared_game_recovery(
             "This move was kept locally, but the shared game move number is unknown. "
-            "Refresh the shared game before playing another move."
+            "Refresh the shared game before shared play can continue."
         )
         return
 
-    state = create_shared_game_state(
-        st.session_state.shared_game_id,
-        fen=st.session_state.fen,
-        game_start_fen=st.session_state.game_start_fen,
-        move_uci_history=st.session_state.move_uci_history,
-        move_history=st.session_state.move_history,
-        claimed_draw_reason=st.session_state.claimed_draw_reason,
-        creator_side=st.session_state.shared_game_creator_side,
-    )
-
     try:
+        state = create_shared_game_state(
+            st.session_state.shared_game_id,
+            fen=st.session_state.fen,
+            game_start_fen=st.session_state.game_start_fen,
+            move_uci_history=st.session_state.move_uci_history,
+            move_history=st.session_state.move_history,
+            claimed_draw_reason=st.session_state.claimed_draw_reason,
+            creator_side=st.session_state.shared_game_creator_side,
+        )
         saved_state = save_shared_game_after_move(
             config,
             state,
             expected_last_move_number=expected_last_move_number,
         )
     except SharedGameStorageConflictError:
-        st.session_state.shared_game_status = (
+        require_shared_game_recovery(
             "This move was kept locally, but the shared game changed before it could be saved. "
-            "Refresh the shared game to load the latest saved position before playing again."
+            "Refresh the shared game before shared play can continue."
         )
     except Exception:
-        st.session_state.shared_game_status = (
+        require_shared_game_recovery(
             "This move was kept locally, but it could not be saved to shared storage. "
-            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
+            "Refresh the shared game before shared play can continue."
         )
     else:
         st.session_state.shared_game_last_move_number = saved_state.last_move_number
@@ -509,6 +536,15 @@ def apply_computer_reply_if_needed() -> None:
 
 def apply_move_text(move_text: str) -> None:
     """Apply a user move and update Streamlit session state."""
+    if (
+        st.session_state.shared_game_id
+        and st.session_state.shared_game_recovery_required
+    ):
+        raise ValueError(
+            "Shared-game recovery is required. "
+            "Refresh the shared game before playing another move."
+        )
+
     if current_game_is_over():
         raise ValueError(
             "The game is over. Reset the game or load a new position to continue."
@@ -532,9 +568,9 @@ def apply_move_text(move_text: str) -> None:
         config, _ = read_shared_game_storage_config()
 
         if config is None:
-            st.session_state.shared_game_status = (
+            require_shared_game_recovery(
                 "This move was kept locally, but shared storage is not configured. "
-                "Local practice still works."
+                "Configure shared storage, then refresh the shared game before shared play can continue."
             )
         else:
             save_current_shared_game_position(config)
@@ -613,6 +649,7 @@ def apply_shared_game_state_to_session(
     st.session_state.shared_game_id = state.game_id
     st.session_state.shared_game_creator_side = state.creator_side
     st.session_state.shared_game_last_move_number = state.last_move_number
+    st.session_state.shared_game_recovery_required = False
     st.session_state.shared_game_status = status_message
 
     mark_shared_game_synced()
@@ -646,21 +683,43 @@ def refresh_current_shared_game(config: SupabaseRestConfig) -> bool:
     if not active_game_id:
         return False
 
+    recovery_required = st.session_state.shared_game_recovery_required
+
     try:
         refreshed_state = load_shared_game(config, active_game_id)
     except Exception:
-        st.session_state.shared_game_status = (
-            "Shared game could not be refreshed. "
-            "Check the shared-game storage settings, table setup, or whether the storage service is paused."
-        )
+        if recovery_required:
+            st.session_state.shared_game_status = (
+                "Shared game could not be refreshed. Recovery is still required "
+                "before shared play can continue."
+            )
+        else:
+            st.session_state.shared_game_status = (
+                "Shared game could not be refreshed. "
+                "Check the shared-game storage settings, table setup, or whether the storage service is paused."
+            )
         return False
 
     if refreshed_state is None:
-        st.session_state.shared_game_status = (
-            "The active shared game ID was not found. "
-            "Check that the ID was copied correctly."
-        )
+        if recovery_required:
+            st.session_state.shared_game_status = (
+                "The active shared game ID was not found. Recovery is still required "
+                "before shared play can continue."
+            )
+        else:
+            st.session_state.shared_game_status = (
+                "The active shared game ID was not found. "
+                "Check that the ID was copied correctly."
+            )
         return False
+
+    # Recovery must reapply persisted state even when ordinary update markers are unchanged.
+    if recovery_required:
+        apply_shared_game_state_to_session(
+            refreshed_state,
+            status_message="Recovered the latest saved game state.",
+        )
+        return True
 
     has_update = shared_game_state_has_update(
         previous_last_move_number=(
