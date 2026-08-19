@@ -2,7 +2,11 @@ from types import SimpleNamespace
 from typing import Any
 
 from app import streamlit_app
-from boardstep.game import STARTING_FEN, apply_uci_move
+from boardstep.game import (
+    STARTING_FEN,
+    apply_uci_move,
+    board_from_uci_history,
+)
 from boardstep.shared_game import create_shared_game_state
 
 
@@ -190,6 +194,9 @@ def test_move_input_respects_shared_game_role(
         shared_game_id="game-role",
         shared_game_role="black",
         fen=STARTING_FEN,
+        game_start_fen=STARTING_FEN,
+        move_uci_history=[],
+        claimed_draw_reason=None,
     )
 
     assert streamlit_app.current_move_input_is_disabled()
@@ -202,6 +209,54 @@ def test_move_input_respects_shared_game_role(
 
     state.shared_game_id = ""
     assert not streamlit_app.current_move_input_is_disabled()
+
+
+def test_move_input_is_disabled_after_automatic_game_termination(
+    monkeypatch: Any,
+) -> None:
+    seventy_five_move_fen = (
+        "7k/8/8/8/8/8/4K3/R7 w - - 150 76"
+    )
+    set_session_state(
+        monkeypatch,
+        computer_move_pending=False,
+        shared_game_id="",
+        shared_game_role="white",
+        fen=seventy_five_move_fen,
+        game_start_fen=seventy_five_move_fen,
+        move_uci_history=[],
+        claimed_draw_reason=None,
+    )
+
+    assert streamlit_app.current_game_is_over()
+    assert streamlit_app.current_move_input_is_disabled()
+
+
+def test_move_input_is_disabled_after_valid_claimed_threefold_draw(
+    monkeypatch: Any,
+) -> None:
+    repetition_cycle = (
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "f6g8",
+    )
+    move_uci_history = repetition_cycle * 2
+    board = board_from_uci_history(STARTING_FEN, move_uci_history)
+    set_session_state(
+        monkeypatch,
+        computer_move_pending=False,
+        shared_game_id="",
+        shared_game_role="white",
+        fen=board.fen(),
+        game_start_fen=STARTING_FEN,
+        move_uci_history=list(move_uci_history),
+        claimed_draw_reason="threefold_repetition",
+    )
+
+    assert board.is_repetition(3)
+    assert streamlit_app.current_game_is_over()
+    assert streamlit_app.current_move_input_is_disabled()
 
 
 def test_unchanged_shared_refresh_preserves_local_move_selection(

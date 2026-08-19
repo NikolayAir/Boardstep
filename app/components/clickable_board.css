@@ -49,8 +49,12 @@
 
 .boardstep-square:disabled,
 .boardstep-disabled {
-    cursor: wait;
+    cursor: default;
     opacity: 1;
+}
+
+.boardstep-square.boardstep-busy {
+    cursor: wait;
 }
 
 .boardstep-last-move {

@@ -6,6 +6,7 @@ import pytest
 from boardstep.computer_player import (
     _SEARCH_INFINITY,
     _alpha_beta_score,
+    _intermediate_move_score,
     _is_endgame,
     _ordered_hard_moves,
     _position_score,
@@ -242,6 +243,52 @@ def test_hard_leaf_search_resolves_immediate_capture_sequence():
     )
 
     assert score == 0
+
+
+def test_hard_search_scores_seventy_five_move_draw_as_zero():
+    board = chess.Board(
+        "7k/8/8/8/8/8/4K3/R7 w - - 150 76"
+    )
+
+    score = _alpha_beta_score(
+        board,
+        depth=1,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == 0
+
+
+def test_intermediate_scores_move_causing_seventy_five_move_draw_as_zero():
+    board = chess.Board(
+        "7k/8/8/8/8/8/4K3/R7 w - - 149 76"
+    )
+
+    score = _intermediate_move_score(
+        board,
+        chess.Move.from_uci("a1a2"),
+        chess.WHITE,
+    )
+
+    assert score == 0
+
+
+def test_hard_search_preserves_stalemate_penalty_when_ahead():
+    board = chess.Board(
+        "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"
+    )
+
+    score = _alpha_beta_score(
+        board,
+        depth=1,
+        alpha=-_SEARCH_INFINITY,
+        beta=_SEARCH_INFINITY,
+        perspective_color=chess.WHITE,
+    )
+
+    assert score == -500
 
 
 def test_hard_orders_more_valuable_capture_first():

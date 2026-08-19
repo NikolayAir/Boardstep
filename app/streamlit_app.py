@@ -209,7 +209,10 @@ def shared_game_auto_refresh_is_paused() -> bool:
 
 def current_move_input_is_disabled() -> bool:
     """Return whether the current browser must not submit a move."""
-    if st.session_state.computer_move_pending:
+    if (
+        st.session_state.computer_move_pending
+        or current_game_is_over()
+    ):
         return True
 
     return (
@@ -1053,6 +1056,7 @@ def main() -> None:
                 files,
                 apply_move_text,
                 disabled=move_input_disabled,
+                busy=st.session_state.computer_move_pending,
             )
 
     with game_col:

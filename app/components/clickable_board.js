@@ -8,6 +8,7 @@ export default function(component) {
 
     const files = data?.files || ["a", "b", "c", "d", "e", "f", "g", "h"];
     const disabled = Boolean(data?.disabled);
+    const busy = Boolean(data?.busy);
     // Map outline white-piece glyphs to filled glyphs so CSS color styling is consistent.
     const whiteToFilledSymbol = {
         "♔": "♚",
@@ -40,6 +41,10 @@ export default function(component) {
 
         if (disabled) {
             button.classList.add("boardstep-disabled");
+        }
+
+        if (disabled && busy) {
+            button.classList.add("boardstep-busy");
         }
 
         if (

@@ -73,6 +73,11 @@ def board_from_uci_history(
                 f"Move history entry {move_number} is not valid UCI."
             ) from exc
 
+        if board.is_game_over(claim_draw=False):
+            raise ValueError(
+                f"Move history entry {move_number} occurs after the game is over."
+            )
+
         if move not in board.legal_moves:
             raise ValueError(
                 f"Move history entry {move_number} is illegal for its position."
@@ -221,6 +226,9 @@ def game_status_from_board(
     if board.is_insufficient_material():
         return "Draw by insufficient material."
 
+    if board.is_seventyfive_moves():
+        return "Draw by the seventy-five-move rule."
+
     repetition_state = repetition_draw_state(board)
 
     if repetition_state == "automatic_fivefold":
@@ -253,6 +261,9 @@ def apply_uci_move(fen: str, move_text: str) -> tuple[str, str]:
         move = chess.Move.from_uci(normalized_move)
     except ValueError as exc:
         raise ValueError("Use UCI format, for example e2e4, g1f3, or e7e8q.") from exc
+
+    if board.is_game_over(claim_draw=False):
+        raise ValueError("The game is already over.")
 
     if move not in board.legal_moves:
         raise ValueError("Illegal move for the current position.")
