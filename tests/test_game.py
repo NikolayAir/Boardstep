@@ -1,3 +1,4 @@
+import chess
 import pytest
 
 from boardstep.game import (
@@ -137,6 +138,28 @@ def test_apply_uci_move_rejects_illegal_move():
         apply_uci_move(STARTING_FEN, "e2e5")
 
 
+@pytest.mark.parametrize(
+    ("fen", "move_text"),
+    (
+        (
+            "8/8/8/8/8/8/4K3/7k w - - 0 1",
+            "e2e3",
+        ),
+        (
+            "7k/8/8/8/8/8/4K3/R7 w - - 150 76",
+            "a1a2",
+        ),
+    ),
+    ids=("insufficient-material", "seventy-five-move-rule"),
+)
+def test_apply_uci_move_rejects_move_after_automatic_termination(
+    fen: str,
+    move_text: str,
+) -> None:
+    with pytest.raises(ValueError):
+        apply_uci_move(fen, move_text)
+
+
 def test_game_status_detects_checkmate():
     fen = STARTING_FEN
 
@@ -212,6 +235,88 @@ def test_board_from_uci_history_rejects_illegal_history():
             STARTING_FEN,
             ("e2e4", "e2e3"),
         )
+
+
+@pytest.mark.parametrize(
+    ("start_fen", "move_uci_history"),
+    (
+        (
+            "8/8/8/8/8/8/4K3/7k w - - 0 1",
+            ("e2e3",),
+        ),
+        (
+            STARTING_FEN,
+            (
+                "g1f3",
+                "g8f6",
+                "f3g1",
+                "f6g8",
+            )
+            * 4
+            + ("e2e4",),
+        ),
+        (
+            "7k/8/8/8/8/8/4K3/R7 w - - 150 76",
+            ("a1a2",),
+        ),
+    ),
+    ids=(
+        "insufficient-material",
+        "fivefold-repetition",
+        "seventy-five-move-rule",
+    ),
+)
+def test_board_from_uci_history_rejects_move_after_automatic_termination(
+    start_fen: str,
+    move_uci_history: tuple[str, ...],
+) -> None:
+    with pytest.raises(ValueError):
+        board_from_uci_history(start_fen, move_uci_history)
+
+
+@pytest.mark.parametrize(
+    ("start_fen", "move_uci_history", "termination"),
+    (
+        (
+            "7k/8/8/8/8/5p2/4K1B1/8 w - - 0 1",
+            ("g2f3",),
+            chess.Termination.INSUFFICIENT_MATERIAL,
+        ),
+        (
+            STARTING_FEN,
+            (
+                "g1f3",
+                "g8f6",
+                "f3g1",
+                "f6g8",
+            )
+            * 4,
+            chess.Termination.FIVEFOLD_REPETITION,
+        ),
+        (
+            "7k/8/8/8/8/8/4K3/R7 w - - 149 76",
+            ("a1a2",),
+            chess.Termination.SEVENTYFIVE_MOVES,
+        ),
+    ),
+    ids=(
+        "insufficient-material",
+        "fivefold-repetition",
+        "seventy-five-move-rule",
+    ),
+)
+def test_board_from_uci_history_accepts_move_that_causes_automatic_termination(
+    start_fen: str,
+    move_uci_history: tuple[str, ...],
+    termination: chess.Termination,
+) -> None:
+    board = board_from_uci_history(start_fen, move_uci_history)
+
+    outcome = board.outcome(claim_draw=False)
+
+    assert outcome is not None
+    assert outcome.termination is termination
+    assert board.move_stack[-1].uci() == move_uci_history[-1]
 
 
 def test_repetition_draw_state_marks_threefold_as_claimable_not_automatic():
@@ -307,3 +412,13 @@ def test_fivefold_repetition_ends_game_without_claim():
     )
 
     assert game_is_over(board)
+
+
+def test_game_status_reports_seventy_five_move_draw():
+    board = chess.Board(
+        "7k/8/8/8/8/8/4K3/R7 w - - 150 76"
+    )
+
+    assert game_status_from_board(board) == (
+        "Draw by the seventy-five-move rule."
+    )

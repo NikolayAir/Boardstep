@@ -352,8 +352,11 @@ def _search_position_score(
     board: chess.Board,
     perspective_color: chess.Color,
 ) -> int:
-    """Return a terminal search score with automatic repetition as a draw."""
-    if _is_automatic_repetition_draw(board):
+    """Return a search score, treating supported automatic draws as zero."""
+    if (
+        _is_automatic_repetition_draw(board)
+        or board.is_seventyfive_moves()
+    ):
         return 0
 
     return _position_score(board, perspective_color)
@@ -669,7 +672,10 @@ def _intermediate_move_score(
         if board.is_checkmate():
             return 100_000 + move_adjustment
 
-        if _is_automatic_repetition_draw(board):
+        if (
+            _is_automatic_repetition_draw(board)
+            or board.is_seventyfive_moves()
+        ):
             return 0
 
         if board.is_game_over():

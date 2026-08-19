@@ -127,6 +127,7 @@ def render_clickable_board(
     apply_move: ApplyMove,
     *,
     disabled: bool = False,
+    busy: bool = False,
 ) -> None:
     """Render the clickable main chessboard."""
     selected_square = st.session_state.selected_square
@@ -151,6 +152,7 @@ def render_clickable_board(
             "lastMoveFrom": last_move_from,
             "lastMoveTo": last_move_to,
             "disabled": disabled,
+            "busy": busy,
         },
         key="main_clickable_board",
         width="stretch",
@@ -171,6 +173,7 @@ def render_board_area(
     apply_move: ApplyMove,
     *,
     disabled: bool = False,
+    busy: bool = False,
 ) -> None:
     """Render the visual board and playable square controls."""
     render_clickable_board(
@@ -178,6 +181,7 @@ def render_board_area(
         files,
         apply_move,
         disabled=disabled,
+        busy=busy,
     )
 
     render_click_move_controls(
