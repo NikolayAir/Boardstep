@@ -80,6 +80,80 @@ def threefold_repetition_state_values() -> dict[str, object]:
     }
 
 
+def checkmate_state_values() -> dict[str, object]:
+    move_uci_history = [
+        "e2e4",
+        "e7e5",
+        "d1h5",
+        "b8c6",
+        "f1c4",
+        "g8f6",
+        "h5f7",
+    ]
+    board = board_from_uci_history(STARTING_FEN, move_uci_history)
+    return {
+        "fen": board.fen(),
+        "move_uci_history": move_uci_history,
+        "move_history": list(move_uci_history),
+        "shared_game_last_move_number": len(move_uci_history),
+    }
+
+
+def render_shared_game_shortcut_for_test(
+    monkeypatch: Any,
+    **state_overrides: object,
+) -> SimpleNamespace:
+    set_shared_game_session(monkeypatch, **state_overrides)
+    rendered = SimpleNamespace(
+        success=[],
+        info=[],
+        captions=[],
+        buttons=[],
+        auto_refresh_configs=[],
+    )
+    config = object()
+
+    monkeypatch.setattr(
+        streamlit_app,
+        "read_shared_game_storage_config",
+        lambda: (config, "Shared games are available."),
+    )
+    monkeypatch.setattr(streamlit_app.st, "write", lambda *args, **kwargs: None)
+    monkeypatch.setattr(streamlit_app.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        streamlit_app.st,
+        "success",
+        lambda message: rendered.success.append(message),
+    )
+    monkeypatch.setattr(
+        streamlit_app.st,
+        "info",
+        lambda message: rendered.info.append(message),
+    )
+    monkeypatch.setattr(
+        streamlit_app.st,
+        "caption",
+        lambda message: rendered.captions.append(message),
+    )
+
+    def render_button(label: str, **kwargs: object) -> bool:
+        rendered.buttons.append((label, kwargs))
+        return False
+
+    monkeypatch.setattr(streamlit_app.st, "button", render_button)
+    monkeypatch.setattr(
+        streamlit_app,
+        "render_shared_game_auto_refresh",
+        lambda supplied_config: rendered.auto_refresh_configs.append(
+            supplied_config
+        ),
+    )
+
+    streamlit_app.render_shared_game_refresh_shortcut()
+    rendered.config = config
+    return rendered
+
+
 def test_clear_computer_practice_session_clears_transient_state(
     monkeypatch: Any,
 ) -> None:
@@ -703,6 +777,61 @@ def test_authoritative_state_application_clears_stale_recovery(
 
     assert state.shared_game_id == "replacement-game"
     assert state.shared_game_recovery_required is False
+
+
+@pytest.mark.parametrize(
+    ("role", "expected_channel", "expected_guidance"),
+    (
+        ("white", "success", "Your turn."),
+        ("black", "info", "Waiting for opponent — White to move."),
+        ("observer", "info", "Observer mode — moves are disabled."),
+    ),
+)
+def test_non_terminal_shared_shortcut_preserves_role_guidance(
+    monkeypatch: Any,
+    role: str,
+    expected_channel: str,
+    expected_guidance: str,
+) -> None:
+    rendered = render_shared_game_shortcut_for_test(
+        monkeypatch,
+        shared_game_role=role,
+    )
+
+    assert getattr(rendered, expected_channel) == [expected_guidance]
+    assert rendered.captions == [
+        "Check for the other player’s latest move."
+    ]
+
+
+@pytest.mark.parametrize(
+    "terminal_state",
+    (
+        checkmate_state_values(),
+        {
+            **threefold_repetition_state_values(),
+            "claimed_draw_reason": "threefold_repetition",
+        },
+    ),
+    ids=("checkmate", "claimed-threefold-draw"),
+)
+def test_terminal_shared_shortcut_shows_finished_guidance_and_refresh_controls(
+    monkeypatch: Any,
+    terminal_state: dict[str, object],
+) -> None:
+    rendered = render_shared_game_shortcut_for_test(
+        monkeypatch,
+        **terminal_state,
+    )
+
+    assert rendered.success == []
+    assert rendered.info == ["Game finished."]
+    assert rendered.captions == []
+    assert len(rendered.buttons) == 1
+    button_label, button_kwargs = rendered.buttons[0]
+    assert button_label == "Refresh shared game"
+    assert button_kwargs["disabled"] is False
+    assert rendered.auto_refresh_configs == [rendered.config]
 
 
 def test_manual_refresh_restores_authoritative_recovery_state(

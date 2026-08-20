@@ -975,18 +975,23 @@ def render_shared_game_refresh_shortcut() -> None:
     st.write("")
     st.markdown("**Shared game**")
 
-    turn_guidance = shared_game_turn_guidance(
-        st.session_state.shared_game_role,
-        st.session_state.fen,
-    )
+    game_finished = current_game_is_over()
 
-    if shared_game_role_can_move(
-        st.session_state.shared_game_role,
-        st.session_state.fen,
-    ):
-        st.success(turn_guidance)
+    if game_finished:
+        st.info("Game finished.")
     else:
-        st.info(turn_guidance)
+        turn_guidance = shared_game_turn_guidance(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        )
+
+        if shared_game_role_can_move(
+            st.session_state.shared_game_role,
+            st.session_state.fen,
+        ):
+            st.success(turn_guidance)
+        else:
+            st.info(turn_guidance)
 
     if st.button(
         "Refresh shared game",
@@ -997,7 +1002,9 @@ def render_shared_game_refresh_shortcut() -> None:
             refresh_current_shared_game(config)
             st.rerun()
 
-    st.caption("Check for the other player’s latest move.")
+    if not game_finished:
+        st.caption("Check for the other player’s latest move.")
+
     render_shared_game_auto_refresh(config)
 
 
