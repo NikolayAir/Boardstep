@@ -111,6 +111,8 @@ def test_create_shared_game_posts_record() -> None:
     assert kwargs["headers"]["Prefer"] == "return=representation"
     assert kwargs["json"]["game_id"] == "game-001"
     assert kwargs["json"]["creator_side"] == "black"
+    assert kwargs["json"]["created_at"] == "2026-06-22T12:00:00+00:00"
+    assert kwargs["json"]["updated_at"] == "2026-06-22T12:00:00+00:00"
     assert kwargs["json"]["last_move_number"] == 0
 
 
@@ -193,6 +195,8 @@ def test_save_shared_game_after_move_patches_with_stale_state_guard() -> None:
         "claimed_draw_reason": "is.null",
     }
     assert kwargs["json"]["creator_side"] == "white"
+    assert "created_at" not in kwargs["json"]
+    assert kwargs["json"]["updated_at"] == "2026-06-22T12:01:00+00:00"
 
 
 def test_save_shared_game_after_move_raises_when_record_changed() -> None:
@@ -221,7 +225,12 @@ def test_save_shared_game_after_move_rejects_negative_expected_move_number() -> 
 
 
 def test_save_shared_game_draw_claim_uses_unclaimed_state_guard() -> None:
-    state = _threefold_claim_state("game-draw-claim")
+    updated_at = datetime(2026, 6, 22, 12, 5, tzinfo=timezone.utc)
+    state = _threefold_claim_state(
+        "game-draw-claim",
+        created_at=datetime(2026, 6, 22, 12, 0, tzinfo=timezone.utc),
+        updated_at=updated_at,
+    )
     session = FakeSession(
         FakeResponse([shared_game_state_to_record(state)])
     )
@@ -243,6 +252,8 @@ def test_save_shared_game_draw_claim_uses_unclaimed_state_guard() -> None:
         "claimed_draw_reason": "is.null",
     }
     assert kwargs["json"]["claimed_draw_reason"] == "threefold_repetition"
+    assert "created_at" not in kwargs["json"]
+    assert kwargs["json"]["updated_at"] == "2026-06-22T12:05:00+00:00"
 
 
 def test_save_shared_game_draw_claim_raises_when_record_changed() -> None:
@@ -270,7 +281,12 @@ def test_save_shared_game_draw_claim_requires_claimed_state() -> None:
         )
 
 
-def _threefold_claim_state(game_id: str) -> SharedGameState:
+def _threefold_claim_state(
+    game_id: str,
+    *,
+    created_at: datetime | None = None,
+    updated_at: datetime | None = None,
+) -> SharedGameState:
     repetition_cycle = (
         "g1f3",
         "g8f6",
@@ -290,6 +306,8 @@ def _threefold_claim_state(game_id: str) -> SharedGameState:
         move_uci_history=move_uci_history,
         move_history=move_uci_history,
         claimed_draw_reason="threefold_repetition",
+        created_at=created_at,
+        updated_at=updated_at,
     )
 
 
