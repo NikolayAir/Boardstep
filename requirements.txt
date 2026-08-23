@@ -3,9 +3,6 @@ streamlit==1.58.0
 chess==1.11.2
 requests<3
 
-# Tests
-pytest==9.1.1
-
 # Compatibility pins for older Intel macOS setup
 pyarrow==15.0.1
 numpy<2

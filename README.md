@@ -10,7 +10,7 @@ Shared games use optional external storage with manual refresh or polling-based 
 
 **Web app:** Streamlit · lightweight JavaScript/CSS chessboard
 
-**Testing and CI:** pytest · GitHub Actions
+**Testing and CI:** pytest · Ruff · GitHub Actions
 
 ## Key capabilities
 
@@ -146,15 +146,18 @@ Shared-game storage is optional for local and computer practice. To configure sh
 
 ## Verification
 
-Run the repository checks:
+Install the development dependencies and run the repository checks:
 
 ```zsh
+python -m pip install -r requirements-dev.txt
+python -m pip check
+python -m ruff check app boardstep tests
 python -m compileall app boardstep tests
 python -m pytest -q
 git diff --check
 ```
 
-GitHub Actions runs the Python compilation and pytest checks on Python 3.12 for pull requests and pushes to `main`.
+GitHub Actions runs dependency checks, Ruff linting, Python compilation, and the pytest test suite on Python 3.12 for pull requests, pushes to `main`, and manually triggered workflow runs.
 
 ## Releases
 
