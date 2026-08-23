@@ -15,6 +15,7 @@ from boardstep.shared_game_storage import (
     SHARED_GAMES_TABLE,
     shared_game_state_from_record,
     shared_game_state_to_record,
+    shared_game_state_to_update_record,
 )
 
 SUPABASE_URL_SECRET = "SUPABASE_URL"
@@ -173,7 +174,7 @@ def _save_shared_game_state_if_unclaimed(
             "last_move_number": f"eq.{expected_last_move_number}",
             "claimed_draw_reason": "is.null",
         },
-        json=shared_game_state_to_record(state),
+        json=shared_game_state_to_update_record(state),
         timeout=config.timeout_seconds,
     )
     _raise_for_status(response)

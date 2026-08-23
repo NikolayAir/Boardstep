@@ -41,6 +41,14 @@ def shared_game_state_to_record(state: SharedGameState) -> dict[str, Any]:
     }
 
 
+def shared_game_state_to_update_record(state: SharedGameState) -> dict[str, Any]:
+    """Convert shared game state to an update payload that leaves creation time unchanged."""
+
+    record = shared_game_state_to_record(state)
+    del record["created_at"]
+    return record
+
+
 def shared_game_state_from_record(record: Mapping[str, Any]) -> SharedGameState:
     """Create shared game state from a database-shaped record."""
 
