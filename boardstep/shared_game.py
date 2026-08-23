@@ -8,7 +8,6 @@ before a future shared-game storage layer is added.
 from __future__ import annotations
 
 import secrets
-
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Literal, Sequence, cast
@@ -21,7 +20,6 @@ from boardstep.game import (
     threefold_draw_can_be_claimed,
     validate_fen_position,
 )
-
 
 SHARED_GAME_ID_ALPHABET = "abcdefghijkmnopqrstuvwxyz23456789"
 DEFAULT_SHARED_GAME_ID_LENGTH = 10

@@ -7,13 +7,12 @@ from typing import Literal, cast
 import chess
 
 from boardstep.game import (
-    ClaimedDrawReason,
     STARTING_FEN,
+    ClaimedDrawReason,
     board_from_uci_history,
     threefold_draw_can_be_claimed,
     validate_fen_position,
 )
-
 
 GAME_RECORD_SCHEMA_VERSION = 1
 

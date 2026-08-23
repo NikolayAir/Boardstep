@@ -6,7 +6,6 @@ from typing import Literal
 from boardstep.game import STARTING_FEN
 from boardstep.game_record import GameRecord
 
-
 GameSummaryOutcome = Literal[
     "ongoing",
     "white_win",

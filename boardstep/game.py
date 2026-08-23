@@ -5,7 +5,6 @@ from typing import Literal
 
 import chess
 
-
 STARTING_FEN = chess.STARTING_FEN
 FILES = tuple("abcdefgh")
 BoardOrientation = Literal["white", "black"]

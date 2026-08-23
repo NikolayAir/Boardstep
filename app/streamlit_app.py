@@ -9,8 +9,11 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
+from app.ui_components import (
+    render_board_area,
+    render_game_panel,
+)
 from boardstep.computer_player import choose_computer_move
-
 from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
@@ -23,7 +26,6 @@ from boardstep.game import (
     threefold_draw_can_be_claimed,
     validate_fen_position,
 )
-
 from boardstep.shared_game import (
     CREATOR_SIDE_OPTIONS,
     DEFAULT_SHARED_GAME_ROLE,
@@ -38,7 +40,6 @@ from boardstep.shared_game import (
     shared_game_state_has_update,
     shared_game_turn_guidance,
 )
-
 from boardstep.supabase_rest_storage import (
     SUPABASE_KEY_SECRET,
     SUPABASE_URL_SECRET,
@@ -50,12 +51,6 @@ from boardstep.supabase_rest_storage import (
     save_shared_game_after_move,
     save_shared_game_draw_claim,
 )
-
-from app.ui_components import (
-    render_board_area,
-    render_game_panel,
-)
-
 
 PLAY_MODE_OPTIONS = ("local", "computer", "shared")
 PLAY_MODE_LABELS = {

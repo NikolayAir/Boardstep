@@ -5,9 +5,9 @@ from boardstep.game import (
     STARTING_FEN,
     apply_uci_move,
     board_files,
+    board_from_uci_history,
     board_ranks,
     board_rows,
-    board_from_uci_history,
     build_uci_move,
     game_is_over,
     game_status,
@@ -16,8 +16,8 @@ from boardstep.game import (
     legal_move_count,
     legal_target_squares,
     repetition_draw_state,
-    threefold_draw_can_be_claimed,
     side_to_move,
+    threefold_draw_can_be_claimed,
     validate_fen_position,
 )
 
