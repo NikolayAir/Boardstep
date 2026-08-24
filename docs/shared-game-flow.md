@@ -4,7 +4,7 @@ Status: historical design note for the shared turn-based game direction, linked 
 
 Boardstep started as a session-based chess practice app. Local practice still uses per-session state, while the shared-game prototype uses external storage so another browser session can load and refresh the same game by ID.
 
-This note documents the intended direction for shared turn-based play. The implemented shared-game model remains a manual-refresh prototype, not real-time multiplayer.
+This note documents the intended direction for shared turn-based play. The initial shared-game implementation used manual refresh and was not real-time multiplayer.
 
 ## Goal
 
@@ -12,9 +12,9 @@ The goal is to let one player create a shared game, send a game ID to another pl
 
 The first shared version is deliberately simple turn-based play with manual refresh, not real-time multiplayer.
 
-## Current baseline
+## Later documented baseline
 
-Boardstep currently supports:
+By `v0.14.0`, Boardstep supported:
 
 * legal move validation through the `chess` Python library
 * board state represented by FEN
@@ -26,11 +26,11 @@ Boardstep currently supports:
 * manual-refresh shared games backed by external storage
 * a deployed Streamlit demo
 
-The shared-game prototype uses external storage because Streamlit session state is local to one browser session and cannot be used as the shared source of truth for a game between two users.
+The shared-game prototype used external storage because Streamlit session state is local to one browser session and cannot be used as the shared source of truth for a game between two users.
 
-## Manual-refresh flow
+## Initial manual-refresh flow
 
-The current shared-game prototype works like this:
+The initial shared-game prototype worked like this:
 
 1. Player A creates a shared game.
 2. The app creates a random game ID.
@@ -55,7 +55,7 @@ A shared game needs at least:
 * last update timestamp
 * last move number
 
-The current setup note uses this table shape:
+The v0.14.0-era setup used this table shape:
 
 ```text
 shared_games
@@ -77,11 +77,11 @@ Streamlit session state is not suitable for shared games because it is not share
 
 Local files or local SQLite can be useful for local experiments and tests, but they should not be treated as reliable deployed shared storage.
 
-A small external database is the most realistic direction for a deployed shared-game prototype. The current implementation uses Supabase/PostgreSQL through REST from the Python Streamlit app.
+A small external database was the most realistic direction for the initial deployed shared-game prototype. The initial implementation used Supabase/PostgreSQL through REST from the Python Streamlit app.
 
 ## First shared prototype scope
 
-The implemented shared prototype includes:
+The initial shared prototype included:
 
 * creating a shared game ID
 * loading a game by ID
@@ -89,8 +89,8 @@ The implemented shared prototype includes:
 * manually refreshing to see the latest state
 * a simple stale-state check using the last move number
 
-It does not include real-time synchronization, user accounts, private invites, chat, timers, ratings, chess engine analysis, or a full backend server.
+It did not include real-time synchronization, user accounts, private invites, chat, timers, ratings, chess engine analysis, or a full backend server.
 
 ## Summary
 
-Boardstep can move toward shared online play in small steps. This note documents the shared-game model and storage direction while keeping the implemented version clearly scoped as a manual-refresh prototype.
+Boardstep introduced shared online play in small steps. This note documents the initial shared-game model and storage direction for the manual-refresh prototype.

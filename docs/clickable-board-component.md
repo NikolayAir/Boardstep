@@ -64,19 +64,17 @@ The clickable board supports this flow:
 7. The existing Python move-validation path applies or rejects the move.
 8. After a legal move, the FEN and move history are updated.
 9. In shared-game mode, the updated position is saved to shared storage.
-10. Other sessions still use manual refresh to load the latest saved shared-game state.
+10. Other sessions can load the latest saved shared-game state either by manual refresh or by enabling optional polling-based auto-refresh.
 
 ## Technical boundaries
 
 The implementation keeps these boundaries:
 
-- chess rules stay in Python
-- legal move validation stays in Python
+- chess rules and legal move validation stay in Python
 - the browser-side component reports square clicks only
 - shared-game storage is unchanged
-- shared games remain manual-refresh, not real-time multiplayer
-- typed UCI input remains available
-- FEN tools remain available
+- shared games use manual refresh or optional polling-based auto-refresh, not real-time multiplayer
+- typed UCI input and FEN tools remain available
 - coordinate practice controls remain available as an optional fallback
 
 The current implementation uses plain JavaScript. TypeScript or React are not required for the current component.
