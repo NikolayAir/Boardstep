@@ -1,5 +1,7 @@
 # Computer practice plan
 
+Status: historical planning note for the initial `v0.12.0` computer-practice implementation.
+
 Boardstep v0.12.0 should add a lightweight local computer-practice mode for solo play.
 
 This feature should stay modest and testable. It should use simple move-selection logic on top of normal chess rules, not an external chess engine and not an AI model.

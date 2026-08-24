@@ -47,7 +47,7 @@ The migration adds the game-start FEN, canonical UCI move history, and optional 
 
 ## Runtime behavior
 
-After a shared game is created or loaded, later legal moves and claimed game results are saved back to shared storage.
+After a shared game is created or loaded, later legal moves and claimed threefold draws are saved back to shared storage.
 
 Other browser sessions can use the manual refresh control or optional polling-based auto-refresh to load the latest saved state. This is not push-based real-time multiplayer.
 
@@ -78,11 +78,9 @@ For Streamlit Community Cloud, the same values should be configured in the app s
 
 The current prototype uses a simple access model:
 
-* games are loaded by game ID
-* there are no user accounts yet
-* there is no private invite system yet
-* anyone with the game ID may be able to load that game
-* this limitation should be documented in public wording if the shared prototype is exposed in the demo
+* games are loaded by ID;
+* there are no user accounts or private invitations;
+* anyone with the ID can load the game.
 
 ## Manual verification
 
