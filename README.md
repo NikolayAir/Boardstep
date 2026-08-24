@@ -27,18 +27,12 @@ flowchart TB
     Handler -->|"read / update"| State["Streamlit session state"]
     Handler -->|"validate / apply move"| Rules["Python chess/domain logic<br/>python-chess"]
     Handler -->|"select move"| Computer["Boardstep computer opponent"]
+    Handler -->|"shared state"| Sync["Shared-game synchronisation"]
 
-    subgraph Shared[" "]
-        direction LR
-        Sync["Shared-game synchronisation"] -->|"REST save / load"| Storage["Supabase REST API<br/>PostgreSQL"]
-    end
-
-    Handler -->|"shared state"| Sync
+    Sync -->|"REST save / load"| Storage["Supabase REST API<br/>PostgreSQL"]
 
     History["Starting FEN + canonical UCI move history"] --> Record["Validated game record"]
     Record --> Outputs["Deterministic JSON and PGN<br/>Game summary"]
-
-    style Shared fill:none,stroke:none
 ```
 
 Python owns chess rules, move validation, repetition handling, computer-opponent logic, shared-game state validation and replay, and game-record processing, with `python-chess` providing the rules and notation foundation. Streamlit coordinates UI orchestration and renders from browser-session state, while the JavaScript/CSS chessboard handles direct board interaction and presentation.
@@ -76,7 +70,7 @@ The game panel shows the selected practice level and latest computer move. The b
 
 ## Shared games
 
-Configured external storage is required. One browser session creates a shared game ID and chooses White, Black, or Random. Another session that loads the same ID is assigned the opposite colour. Each session can make moves only for its assigned colour or switch to Observer mode. Board orientation, move permissions, and turn guidance follow the session's current role. Leaving this mode returns the current session to local practice without deleting the persisted state.
+Configured external storage is required. One browser session creates a shared game ID and chooses White, Black, or Random. A second session loading the same ID is assigned the opposite colour. Each session can make moves only for its assigned colour or switch to Observer mode. Board orientation, move permissions, and turn guidance follow the session's current role. Leaving shared mode returns the session to local practice without deleting persisted state.
 
 Moves are saved to shared storage and other sessions can use `Refresh shared game` or optional auto-refresh to check for updates. A normal refresh that finds no change preserves the current local move selection. If a locally applied move cannot be saved, further shared moves and draw claims are blocked until authoritative persisted state is restored through refresh.
 
@@ -109,7 +103,7 @@ The computer opponent does not use an external chess engine or provide Elo-calib
 
 ## Local setup
 
-To run Boardstep locally with Python 3.12, create and activate a virtual environment, then install the application dependencies:
+To run Boardstep locally with Python 3.12, set up a virtual environment and install the dependencies:
 
 ```zsh
 python -m venv .venv
@@ -123,7 +117,7 @@ Start the application from the repository root:
 python -m streamlit run app/streamlit_app.py
 ```
 
-External storage is not required for local or computer practice. To configure shared games, see [`docs/shared-game-storage-setup.md`](docs/shared-game-storage-setup.md).
+External storage is required only for shared games; see [`docs/shared-game-storage-setup.md`](docs/shared-game-storage-setup.md) for setup.
 
 ## Verification
 
