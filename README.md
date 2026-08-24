@@ -21,32 +21,27 @@ Boardstep is a chess practice app with local, computer, and shared modes, built 
 
 ```mermaid
 flowchart TB
-    UI["Streamlit app"] -->|"render component"| Board["JavaScript/CSS chessboard"]
+    UI["Streamlit app"] -->|"renders"| Board["JavaScript/CSS chessboard"]
     Board -->|"square click"| Handler["Python UI orchestration"]
+
     Handler -->|"read / update"| State["Streamlit session state"]
-    State -->|"render state"| UI
-
     Handler -->|"validate / apply move"| Rules["Python chess/domain logic<br/>python-chess"]
-    Rules -->|"updated position + SAN"| Handler
+    Handler -->|"select move"| Computer["Boardstep computer opponent"]
 
-    State -. "computer turn + position/history" .-> Computer["Boardstep computer opponent"]
-    Computer -. "selected legal move" .-> Handler
-    Computer -. "depends on replay + chess rules" .-> Rules
+    subgraph Shared[" "]
+        direction LR
+        Sync["Shared-game synchronisation"] -->|"REST save / load"| Storage["Supabase REST API<br/>PostgreSQL"]
+    end
 
-    State -. "state to save" .-> Sync["Shared-game state / synchronisation"]
-    Sync -->|"save via REST"| Storage["Supabase REST API<br/>PostgreSQL"]
-    Storage -->|"load via REST"| Sync
-    Sync -. "loaded shared state" .-> Handler
-    Sync -. "depends on validation + replay" .-> Rules
+    Handler -->|"shared state"| Sync
 
-    History["Starting FEN + canonical move history"] --> Record["Validated game record"]
-    Record -. "depends on validation + replay" .-> Rules
-    Record --> JSON["Deterministic JSON"]
-    Record --> PGN["Deterministic PGN"]
-    Record --> Summary["Game summary"]
+    History["Starting FEN + canonical UCI move history"] --> Record["Validated game record"]
+    Record --> Outputs["Deterministic JSON and PGN<br/>Game summary"]
+
+    style Shared fill:none,stroke:none
 ```
 
-Python owns chess rules, move validation, computer-opponent logic, repetition handling, and game-record processing, with `python-chess` providing the rules and notation foundation. Streamlit coordinates UI orchestration and browser-session state, while the JavaScript/CSS chessboard handles direct board interaction and presentation.
+Python owns chess rules, move validation, repetition handling, computer-opponent logic, shared-game state validation and replay, and game-record processing, with `python-chess` providing the rules and notation foundation. Streamlit coordinates UI orchestration and renders from browser-session state, while the JavaScript/CSS chessboard handles direct board interaction and presentation.
 
 Optional external storage is confined to shared-game persistence and synchronisation. The validated game-record layer is independent of both Streamlit and shared-game storage.
 
@@ -110,7 +105,7 @@ These capabilities are tested domain-layer APIs.
 
 Boardstep uses click-to-move and does not provide drag-and-drop. Local and computer practice are session-based and do not provide persistent personal game history. Shared mode requires configured external storage and does not provide account-backed player ownership.
 
-The computer opponent is designed for practice and does not use an external chess engine or provide Elo-calibrated strength. Game-record review, summaries, and JSON/PGN download controls are not currently exposed in Streamlit.
+The computer opponent does not use an external chess engine or provide Elo-calibrated strength. Game-record review, summaries, and JSON/PGN exports are not currently exposed in Streamlit.
 
 ## Local setup
 
