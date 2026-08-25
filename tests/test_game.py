@@ -169,6 +169,31 @@ def test_game_status_detects_checkmate():
     assert game_status(fen) == "Checkmate. White wins."
 
 
+@pytest.mark.parametrize(
+    ("fen", "expected_status"),
+    (
+        (
+            "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1",
+            "Stalemate.",
+        ),
+        (
+            "8/8/8/8/8/8/4K3/7k w - - 0 1",
+            "Draw by insufficient material.",
+        ),
+        (
+            "4k3/8/8/8/8/8/4R3/4K3 b - - 0 1",
+            "Black to move. Check.",
+        ),
+    ),
+    ids=("stalemate", "insufficient-material", "check"),
+)
+def test_game_status_reports_terminal_and_check_states(
+    fen: str,
+    expected_status: str,
+) -> None:
+    assert game_status(fen) == expected_status
+
+
 def test_board_files_returns_white_orientation_by_default():
     assert board_files() == ("a", "b", "c", "d", "e", "f", "g", "h")
 

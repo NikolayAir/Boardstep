@@ -6,7 +6,7 @@ Boardstep is a chess practice app with local, computer, and shared modes, built 
 
 **Web app:** Streamlit · JavaScript/CSS chessboard · [Live demo](https://boardstep.streamlit.app)
 
-**Testing and CI:** pytest · Ruff · GitHub Actions
+**Testing and CI:** pytest · pytest-cov · Ruff · GitHub Actions
 
 ![Boardstep chess practice interface](docs/assets/boardstep-app-overview.png)
 
@@ -133,12 +133,11 @@ Run the local checks:
 python -m pip check
 python -m ruff check app boardstep tests
 python -m compileall app boardstep tests
-python -m pytest -q
+python -m pytest -q --cov=boardstep --cov=app --cov-branch --cov-report=term-missing
 git diff --check
 ```
 
-GitHub Actions runs dependency checks, Ruff linting, Python compilation, and the pytest test suite on Python 3.12 for pull requests, pushes to `main`, and manually triggered workflow runs.
-
+GitHub Actions runs dependency checks, Ruff linting, Python compilation, and pytest with non-gating branch coverage reporting on Python 3.12 for pull requests, pushes to `main`, and manual runs.
 ## Releases
 
 Versioned release notes are available in [GitHub Releases](https://github.com/NikolayAir/Boardstep/releases).

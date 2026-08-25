@@ -47,5 +47,5 @@ jobs:
       - name: Compile Python files
         run: python -m compileall app boardstep tests
 
-      - name: Run tests
-        run: python -m pytest -q
+      - name: Run tests with branch coverage
+        run: python -m pytest -q --cov=boardstep --cov=app --cov-branch --cov-report=term-missing
