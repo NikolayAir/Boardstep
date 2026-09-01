@@ -103,7 +103,7 @@ The computer opponent does not use an external chess engine or provide Elo-calib
 
 ## Local setup
 
-To run Boardstep locally with Python 3.12, set up a virtual environment and install the dependencies:
+To run Boardstep locally with Python 3.12–3.14, set up a virtual environment and install the dependencies:
 
 ```zsh
 python -m venv .venv
@@ -137,7 +137,7 @@ python -m pytest -q --cov=boardstep --cov=app --cov-branch --cov-report=term-mis
 git diff --check
 ```
 
-GitHub Actions runs dependency checks, Ruff linting, Python compilation, and pytest with non-gating branch coverage reporting on Python 3.12 for pull requests, pushes to `main`, and manual runs.
+GitHub Actions runs dependency checks, Ruff linting, Python compilation, and pytest with non-gating branch coverage reporting on Python 3.12, 3.13, and 3.14 for pull requests, pushes to `main`, and manual runs.
 ## Releases
 
 Versioned release notes are available in [GitHub Releases](https://github.com/NikolayAir/Boardstep/releases).
